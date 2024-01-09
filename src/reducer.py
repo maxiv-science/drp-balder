@@ -1,7 +1,7 @@
 from dranspose.event import ResultData
 
 
-class FluorescenceReducer:
+class BalderReducer:
     def __init__(self, parameters=None):
         self.publish = {"map": {}, "control":{}}
 
