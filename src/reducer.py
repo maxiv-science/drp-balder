@@ -6,6 +6,7 @@ class BalderReducer:
         self.publish = {"map": {}, "control":{}}
 
     def process_result(self, result: ResultData, parameters=None):
+        pass
 
     def finish(self, parameters=None):
         print("finished reducer")
