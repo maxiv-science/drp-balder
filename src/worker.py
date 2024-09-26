@@ -4,7 +4,7 @@ import numpy as np
 
 from dranspose.middlewares.stream1 import parse as parse_stins
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
-from dranspose.parameters import IntParameter
+from dranspose.parameters import IntParameter, FloatParameter
 
 from bitshuffle import decompress_lz4
 import zmq
@@ -17,19 +17,24 @@ class Start:
 
 @dataclass
 class Result:
-    projected: list[float]
+    projected: list[int]
+    roi_sum: int
 
 class XESWorker:
     def __init__(self, *args, **kwargs):
         self.xes_stream = "xes_eiger"
 
-    # @staticmethod
-    # def describe_parameters():
-    #     params = [
-    #         IntParameter(name="till_x", default=2),
-    #         IntParameter(name="from_y", default=8),
-    #     ]
-    #     return params
+    @staticmethod
+    def describe_parameters():
+        params = [
+            IntParameter(name="ROI_from", default=0),
+            IntParameter(name="ROI_to", default=1065),
+            IntParameter(name="mask_greater_than", default=0xFFFFFFFF - 1),
+            FloatParameter(name="a0", default=0),
+            FloatParameter(name="a1", default=0),
+            FloatParameter(name="a2", default=0),
+        ]
+        return params
 
     def process_event(self, event, parameters=None):
         # logger.debug(event)
@@ -47,7 +52,12 @@ class XESWorker:
                     if isinstance(bufframe, zmq.Frame):
                         bufframe = bufframe.bytes
                     img = decompress_lz4(bufframe, acq.shape, dtype=acq.type)
-                    masked_img = np.ma.masked_greater(img, 4.294e+9)
-                    projection = np.sum(masked_img,axis=0)
-                    logger.debug(f"{projection=}")
-                    return Result(projection)
+                else:
+                    img = acq.data
+                masked_img = np.ma.masked_greater(img, parameters["mask_greater_than"].value)
+                projected = np.sum(masked_img,axis=0)
+                logger.debug(f"{projected=}")
+                a = parameters["ROI_from"].value
+                b = parameters["ROI_to"].value
+                roi_sum = np.sum(projected[a:b])
+                return Result(projected, roi_sum)
