@@ -38,7 +38,7 @@ class XESSource: #  Only works with old xes-receiver files
                                           streams={"xes_eiger": StreamData(typ="STINS", frames=[stins, dat.tobytes()])})
             yield img
             frameno += 1
-            logger.debug(f"Sending {img=}")
+            # logger.debug(f"Sending {img=}")
 
         stins_end = Stream1End(htype="series_end", msg_number=next(msg_number)).model_dump_json()
         end = InternalWorkerMessage(event_number=frameno,
