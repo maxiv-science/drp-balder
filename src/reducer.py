@@ -21,14 +21,18 @@ class XESReducer:
                 dest_filename = f"{name}_processed{ext}"
                 os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
                 self._fh = h5py.File(dest_filename, 'w')
-                self._dset = self._fh.create_dataset("projected", (1030,), maxshape=(None, ), dtype=np.float32)
                 # self._fh.create_dataset("till_x", data=parameters["till_x"].value)
                 # self._fh.create_dataset("from_y", data=parameters["from_y"].value)
         elif isinstance(result.payload, Result):
             logger.debug("got result %s", result.payload)
+            if self._dset is None:
+                size = result.payload.projected.shape[0]
+                dtype = result.payload.projected.dtype
+                self._dset = self._fh.create_dataset("projected", (0, size), maxshape=(None, size), dtype=dtype)
             oldsize = self._dset.shape[0]
             self._dset.resize(max(1 + result.event_number, oldsize), axis=0)
-            self._dset[result.event_number-1] = result.payload.projections
+            self._dset[result.event_number-1] = result.payload.projected
+
 
     def finish(self, parameters=None):
         if self._fh is not None:
