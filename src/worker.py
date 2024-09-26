@@ -47,6 +47,7 @@ class XESWorker:
                     if isinstance(bufframe, zmq.Frame):
                         bufframe = bufframe.bytes
                     img = decompress_lz4(bufframe, acq.shape, dtype=acq.type)
-                    projection = np.sum(img,axis=1)
+                    masked_img = np.ma.masked_greater(img, 4.294e+9)
+                    projection = np.sum(masked_img,axis=0)
                     logger.debug(f"{projection=}")
                     return Result(projection)
