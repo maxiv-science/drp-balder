@@ -12,6 +12,7 @@ class XESReducer:
         self.projections = []
         self._fh = None
         self._proj_dset = None
+        self._proj_corr_dset = None
         self._roi_dset = None
         self.dir = "/entry/instrument/eiger_xes/"
 
@@ -23,7 +24,9 @@ class XESReducer:
                 dest_filename = f"{name}_processed{ext}"
                 os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
                 self._fh = h5py.File(dest_filename, 'w')
-                self._fh.create_dataset(f"{self.dir}ROI_limits", data=[parameters["ROI_from"].value, parameters["ROI_to"].value])
+                self._fh.create_dataset(f"{self.dir}ROI_limits", data=(parameters["ROI_from"].value, parameters["ROI_to"].value))
+                coeffs = (parameters["a0"].value, parameters["a1"].value, parameters["a2"].value)
+                self._fh.create_dataset(f"{self.dir}coefficients", data=coeffs)
                 self._roi_dset = self._fh.create_dataset(f"{self.dir}ROI_sum", (0, ), maxshape=(None, ), dtype=np.int32)
         elif isinstance(result.payload, Result):
             logger.debug("got result %s", result.payload)
@@ -31,9 +34,12 @@ class XESReducer:
                 size = result.payload.projected.shape[0]
                 dtype = result.payload.projected.dtype
                 self._proj_dset = self._fh.create_dataset(f"{self.dir}proj", (0, size), maxshape=(None, size), dtype=dtype)
+                self._proj_corr_dset = self._fh.create_dataset(f"{self.dir}proj_corrected", (0, size), maxshape=(None, size), dtype=dtype)
             oldsize = self._proj_dset.shape[0]
             self._proj_dset.resize(max(1 + result.event_number, oldsize), axis=0)
             self._proj_dset[result.event_number-1] = result.payload.projected
+            self._proj_corr_dset.resize(max(1 + result.event_number, oldsize), axis=0)
+            self._proj_corr_dset[result.event_number-1] = result.payload.projected_corr
 
             oldsize = self._roi_dset.shape[0]
             self._roi_dset.resize(max(1 + result.event_number, oldsize), axis=0)
