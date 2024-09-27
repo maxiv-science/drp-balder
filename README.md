@@ -7,4 +7,4 @@ Optionally parameters may be provided in json or pickle format.
 
 Run on recorded data using the following command:
 
-```LOG_LEVEL="DEBUG" dranspose replay -w "src.worker:XESWorker" -r "src.reducer:XESReducer" -s "src.hdf5_sources:XESSource"```
+```LOG_LEVEL="DEBUG" dranspose replay -w "src.worker:BalderWorker" -r "src.reducer:BalderReducer" -s "src.hdf5_sources:XESSource"  -p params.json ```
