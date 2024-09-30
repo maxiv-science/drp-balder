@@ -13,15 +13,18 @@ class BalderReducer:
         self.hsds = h5pyd.File("http://balder-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin",
                                password="admin", mode="a")
 
-        self.publish = {"map": {}, "control":{}}
+        self.publish = {"map": {}, "control":{}, "ts":[]}
         self.projections = []
         self._fh = None
         self._proj_dset = None
         self._proj_corr_dset = None
         self._roi_dset = None
+        self.buffer = []
         self.dir = "/entry/instrument/eiger_xes/"
 
     def process_result(self, result, parameters=None):
+        if "arrival" in result.payload:
+            self.publish["ts"].append(result.payload["arrival"])
         if isinstance(result.payload, Start):
             logger.info("start message")
             if self._fh is None:

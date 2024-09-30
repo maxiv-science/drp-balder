@@ -1,8 +1,12 @@
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
+
 import numpy as np
 
+import json
 from dranspose.middlewares.stream1 import parse as parse_stins
+from dranspose.middlewares.positioncap import PositioncapParser
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
 from dranspose.parameters import IntParameter, FloatParameter
 
@@ -25,6 +29,7 @@ class BalderWorker:
     def __init__(self, *args, **kwargs):
         self.xes_stream = "xes_eiger"
         self.coeffs = None
+        self.pcap = PositioncapParser()
         self.X = None
 
     @staticmethod
@@ -57,7 +62,15 @@ class BalderWorker:
         
 
     def process_event(self, event, parameters=None):
-        # logger.debug(event)
+        #logger.debug(event)
+        if "eigerxes" in event.streams and "pcap" in event.streams:
+            data = json.loads(event.streams["eigerxes"].frames[0])
+            if data['htype'] == 'dimage-1.0':
+                now = datetime.now(timezone.utc)
+                return {"arrival": now}
+            #print("data:", data)
+            #res = self.pcap.parse(event.streams["pcap"])
+            #print("res", res)
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
