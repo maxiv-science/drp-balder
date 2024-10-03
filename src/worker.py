@@ -39,24 +39,24 @@ class BalderWorker:
         ]
         return params
 
-    def update_correction(self, parameters, shape):
-        coeffs = (parameters["a2"].value,
+    def _update_correction(self, parameters, shape):
+        new_coeffs = (parameters["a2"].value,
                  parameters["a1"].value,
                  parameters["a0"].value,
                  )
-        if coeffs != self.coeffs:
-            logger.debug(f"updating correction {coeffs=}")
-            poly = np.poly1d(coeffs)
+        if new_coeffs != self.coeffs:
+            logger.debug(f"updating correction {new_coeffs=}")
+            poly = np.poly1d(new_coeffs)
             x = np.arange(shape[1], dtype=np.float32)
             y = np.arange(shape[0], dtype=np.float32)
             self.X = np.meshgrid(x, y)[0]
             correction = (poly(y) - poly[0]).reshape(-1, 1)
             self.X -= correction
             self.X = self.X.reshape(-1)
-            self.coeffs = coeffs
+            self.coeffs = new_coeffs
         
 
-    def process_event(self, event, parameters=None):
+    def process_event(self, event, parameters=None, *args, **kwargs):
         # logger.debug(event)
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
@@ -73,7 +73,7 @@ class BalderWorker:
                     img = decompress_lz4(bufframe, acq.shape, dtype=acq.type)
                 else:
                     img = acq.data
-                self.update_correction(parameters, img.shape)
+                self._update_correction(parameters, img.shape)
                 mask = img < parameters["mask_greater_than"].value
                 img *= mask
                 projected = np.sum(img,axis=0)
