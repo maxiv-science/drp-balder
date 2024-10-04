@@ -30,8 +30,12 @@ class BalderReducer:
             if self._fh is None:
                 name, ext = os.path.splitext(result.payload.filename)
                 dest_filename = f"{name}_processed{ext}"
-                os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
-                self._fh = h5py.File(dest_filename, 'w')
+                try:
+                    os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
+                    self._fh = h5py.File(dest_filename, 'w')
+                except Exception:
+                    self._fh = h5py.File(dest_filename, 'w', driver='core', backing_store=False)
+                    logger.warning(f"Could not write to file {dest_filename}. Will work in live mode only.")
                 self._fh.create_dataset(f"{self.dir}/ROI_limits", data=(parameters["ROI_from"].value, parameters["ROI_to"].value))
                 coeffs = (parameters["a0"].value, parameters["a1"].value, parameters["a2"].value)
                 self._fh.create_dataset(f"{self.dir}/coefficients", data=coeffs)
