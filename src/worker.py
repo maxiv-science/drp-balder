@@ -27,7 +27,8 @@ class Result:
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
-        self.xes_stream = "eiger-1m" # "eigerxes"
+        self.xes_stream = None # "eigerxes"
+        self.eiger_names = {"eiger-1m", "eigerxes"}
         self.pcap_stream = "pcap"
         self.pcap = PositioncapParser()
         self.coeffs = None
@@ -63,6 +64,8 @@ class BalderWorker:
         
 
     def process_event(self, event, parameters=None, *args, **kwargs):
+        # from time import sleep
+        # sleep(1)
         # logger.debug(event) 
         if self.pcap_stream in event.streams:
             res = self.pcap.parse(event.streams[self.pcap_stream])
@@ -73,7 +76,12 @@ class BalderWorker:
                 ene_raw = res.fields["INENC2.VAL.Mean"].value
                 crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
                 ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
-                logger.debug(f"{triggernumber=} {ene_raw=} {ene=}") 
+                logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
+        # FIXME to remove
+        if self.xes_stream is None:
+            logger.debug(f"{self.eiger_names} & {set(event.streams)=}")
+            logger.debug(f"{(self.eiger_names & set(event.streams))=}")
+            self.xes_stream = (self.eiger_names & set(event.streams)).pop()
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
