@@ -24,7 +24,7 @@ class XESSource: #  Only works with old xes-receiver files
         msg_number = itertools.count(0)
 
         stins_start = Stream1Start(htype="header", filename=self.fname, msg_number=next(msg_number)).model_dump_json()
-        start = InternalWorkerMessage(event_number=0, streams={"xes_eiger": StreamData(typ="STINS", frames=[stins_start])})
+        start = InternalWorkerMessage(event_number=0, streams={"eigerxes": StreamData(typ="STINS", frames=[stins_start])})
         logger.debug(f"Sending {start=}")
         yield start
 
@@ -35,13 +35,13 @@ class XESSource: #  Only works with old xes-receiver files
                                 type=str(image.dtype)).model_dump_json()
             dat = compress_lz4(image)
             img = InternalWorkerMessage(event_number=frameno+1,
-                                          streams={"xes_eiger": StreamData(typ="STINS", frames=[stins, dat.tobytes()])})
+                                          streams={"eigerxes": StreamData(typ="STINS", frames=[stins, dat.tobytes()])})
             yield img
             frameno += 1
             # logger.debug(f"Sending {img=}")
 
         stins_end = Stream1End(htype="series_end", msg_number=next(msg_number)).model_dump_json()
         end = InternalWorkerMessage(event_number=frameno,
-                                      streams={"xes_eiger": StreamData(typ="STINS", frames=[stins_end])})
+                                      streams={"eigerxes": StreamData(typ="STINS", frames=[stins_end])})
         logger.debug(f"Sending {end=}")
         yield end

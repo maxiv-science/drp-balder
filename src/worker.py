@@ -23,7 +23,7 @@ class Result:
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
-        self.xes_stream = "xes_eiger"
+        self.xes_stream = "eigerxes"
         self.coeffs = None
         self.X = None
 
@@ -57,7 +57,7 @@ class BalderWorker:
         
 
     def process_event(self, event, parameters=None, *args, **kwargs):
-        # logger.debug(event)
+        logger.debug(event)
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
