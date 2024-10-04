@@ -1,11 +1,15 @@
 import logging
 from dataclasses import dataclass
 import numpy as np
+from math import sin, radians
 
 from dranspose.middlewares.stream1 import parse as parse_stins
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
 from dranspose.parameters import IntParameter, FloatParameter
+from dranspose.data.positioncap import PositionCapStart, PositionCapValues
 
+# from dranspose.middlewares.sardana import parse as sardana_parse
+from dranspose.middlewares.positioncap import PositioncapParser
 from bitshuffle import decompress_lz4
 import zmq
 
@@ -23,7 +27,9 @@ class Result:
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
-        self.xes_stream = "eigerxes"
+        self.xes_stream = "eiger-1m" # "eigerxes"
+        self.pcap_stream = "pcap"
+        self.pcap = PositioncapParser()
         self.coeffs = None
         self.X = None
 
@@ -57,7 +63,17 @@ class BalderWorker:
         
 
     def process_event(self, event, parameters=None, *args, **kwargs):
-        logger.debug(event)
+        # logger.debug(event) 
+        if self.pcap_stream in event.streams:
+            res = self.pcap.parse(event.streams[self.pcap_stream])
+            if isinstance(res, PositionCapStart):
+                self.arm_time = res.arm_time
+            elif isinstance(res, PositionCapValues):
+                triggernumber = res.fields["COUNTER2.OUT.Max"].value
+                ene_raw = res.fields["INENC2.VAL.Mean"].value
+                crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
+                ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
+                logger.debug(f"{triggernumber=} {ene_raw=} {ene=}") 
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
