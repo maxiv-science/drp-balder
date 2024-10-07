@@ -8,6 +8,7 @@
  - [ ] rm test sleeps
 
 ## Nice to have
+ - [ ] send mask to dranspose via [bin parameter](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_replay.py#L202)
  - [ ] write custom live viewer 
  - [ ] point and click select ROI  
  - [ ] energy scale from PCAP on y axis 
