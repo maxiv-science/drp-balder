@@ -68,6 +68,8 @@ class BalderReducer:
                 except: pass
                 try: del self.hsds["xes"]["proj_corrected"]
                 except: pass
+                try: del self.hsds["xes"]["projected"]
+                except: pass
                 dt_fields = self._roi_dset.dtype
                 # dt_fields = np.dtype({'names': ['roi_sum'],
                 #                 'formats': [(self._roi_dset.dtype)]})
@@ -78,15 +80,20 @@ class BalderReducer:
                 self.hsds["xes"].require_dataset("proj_corrected", shape=(0, size), 
                                                 maxshape=(None, size),
                                                 dtype=self._proj_corr_dset.dtype)  
+                self.hsds["xes"].require_dataset("projected", shape=(0, size), 
+                                                maxshape=(None, size),
+                                                dtype=self._proj_dset.dtype)  
 
 
             if self.last_roi_len < self._roi_dset.shape[0]:
                 self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
                 self.hsds["xes/proj_corrected"].resize(self._roi_dset.shape[0], axis=0)
+                self.hsds["xes/projected"].resize(self._roi_dset.shape[0], axis=0)
                 a, b = self.last_roi_len, self._roi_dset.shape[0]
                 self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
 
                 self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
+                self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
                 self.last_roi_len = self._roi_dset.shape[0]
         return 1
 

@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from typing import Optional
 import numpy as np
 from math import sin, radians
 
@@ -24,6 +25,7 @@ class Result:
     projected: list[int]
     projected_corr: list[int]
     roi_sum: int
+    preview: Optional[list[int,int]] = None
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
