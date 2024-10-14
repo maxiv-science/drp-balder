@@ -15,7 +15,7 @@
 ## Nice to have
  - [ ] send mask to dranspose as [binary parameters](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_replay.py#L202) via [REST interface](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_parameters.py#L114) 
  - [ ] write custom live viewer 
- - [ ] point and click select ROI  
+ - [ ] [point and click](https://www.silx.org/doc/silx/latest/modules/gui/plot/items.html#silx.gui.plot.items.roi.BandROI) select ROI  
  - [ ] energy scale from PCAP on y axis 
 
 
