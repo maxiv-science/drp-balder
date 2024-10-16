@@ -29,8 +29,8 @@ class Result:
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
-        self.xes_stream = None # "eigerxes"
-        self.eiger_names = {"eiger-1m", "eigerxes"}
+        self.xes_stream = "eigerxes" # None # "eigerxes"
+        # self.eiger_names = {"eiger-1m", "eigerxes"}
         self.pcap_stream = "pcap"
         self.pcap = PositioncapParser()
         self.coeffs = None
@@ -47,6 +47,9 @@ class BalderWorker:
             FloatParameter(name="a2", default=0),
         ]
         return params
+
+    def get_tick_interval(self, parameters=None):
+        return 1000
 
     def _update_correction(self, parameters, shape):
         new_coeffs = (parameters["a2"].value,
@@ -65,25 +68,28 @@ class BalderWorker:
             self.coeffs = new_coeffs
         
 
-    def process_event(self, event, parameters=None, *args, **kwargs):
+    def process_event(self, event, parameters=None, tick=False, *args, **kwargs):
         # from time import sleep
         # sleep(1)
         # logger.debug(event) 
-        if self.pcap_stream in event.streams:
-            res = self.pcap.parse(event.streams[self.pcap_stream])
-            if isinstance(res, PositionCapStart):
-                self.arm_time = res.arm_time
-            elif isinstance(res, PositionCapValues):
-                triggernumber = res.fields["COUNTER2.OUT.Max"].value
-                ene_raw = res.fields["INENC2.VAL.Mean"].value
-                crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
-                ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
-                logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
-        # FIXME to remove
-        if self.xes_stream is None:
-            logger.debug(f"{self.eiger_names} & {set(event.streams)=}")
-            logger.debug(f"{(self.eiger_names & set(event.streams))=}")
-            self.xes_stream = (self.eiger_names & set(event.streams)).pop()
+
+        # if self.pcap_stream in event.streams:
+        #     res = self.pcap.parse(event.streams[self.pcap_stream])
+        #     if isinstance(res, PositionCapStart):
+        #         self.arm_time = res.arm_time
+        #     elif isinstance(res, PositionCapValues):
+        #         triggernumber = res.fields["COUNTER2.OUT.Max"].value
+        #         ene_raw = res.fields["INENC2.VAL.Mean"].value
+        #         crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
+        #         ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
+        #         logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
+
+        # FIXME remove code to switch from one test to another
+        # if self.xes_stream is None:
+        #     logger.debug(f"{self.eiger_names} & {set(event.streams)=}")
+        #     logger.debug(f"{(self.eiger_names & set(event.streams))=}")
+        #     self.xes_stream = (self.eiger_names & set(event.streams)).pop()
+
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
@@ -92,6 +98,7 @@ class BalderWorker:
                 logger.info("start message %s", acq)
                 return Start(acq.filename)
             elif isinstance(acq, Stream1Data):
+                logger.info("image message %s", acq)
                 if 'bslz4' in acq.compression:
                     bufframe = event.streams[self.xes_stream].frames[1]
                     if isinstance(bufframe, zmq.Frame):
@@ -112,4 +119,10 @@ class BalderWorker:
                 a = parameters["ROI_from"].value
                 b = parameters["ROI_to"].value
                 roi_sum = np.sum(proj_corrected[a:b])
-                return Result(projected, proj_corrected, roi_sum)
+                # FIXME properly use tick
+                # tick = (acq.frame%10) == 0
+                if tick:
+                    logger.info("Tick received, sending live preview...")
+                    return Result(projected, proj_corrected, roi_sum, img[:])
+                else:
+                    return Result(projected, proj_corrected, roi_sum)

@@ -14,7 +14,8 @@ class BalderReducer:
     def __init__(self, *args, **kwargs):
         self.hsds = h5pyd.File("http://balder-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin",
                                password="admin", mode="a")
-        self.first_run = True
+        self.last_frame = None
+        self.last_proj = None
         self.publish = {"map": {}, "control":{}}
         self.projections = []
         self._fh = None
@@ -57,19 +58,21 @@ class BalderReducer:
             oldsize = self._roi_dset.shape[0]
             self._roi_dset.resize(max(1 + result.event_number, oldsize), axis=0)
             self._roi_dset[result.event_number-1] = result.payload.roi_sum
+            if result.payload.preview is not None:
+                self.last_frame = result.payload.preview
+                self.last_proj = result.payload.projected_corr
 
 
     def timer(self):
-        logger.info("timed")
+        logger.info("timer called")
         if (self._roi_dset is not None):
             if self.last_roi_len == 0:
                 self.hsds.require_group("xes")
-                try: del self.hsds["xes"]["roi_sum"]
-                except: pass
-                try: del self.hsds["xes"]["proj_corrected"]
-                except: pass
-                try: del self.hsds["xes"]["projected"]
-                except: pass
+                for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj"): 
+                    try: 
+                        del self.hsds["xes"][dname]
+                    except Exception: 
+                        pass
                 dt_fields = self._roi_dset.dtype
                 # dt_fields = np.dtype({'names': ['roi_sum'],
                 #                 'formats': [(self._roi_dset.dtype)]})
@@ -77,24 +80,37 @@ class BalderReducer:
                                                 maxshape=(None,),
                                                 dtype=dt_fields)  
                 size = self._proj_corr_dset.shape[1]
-                self.hsds["xes"].require_dataset("proj_corrected", shape=(0, size), 
+                self.hsds["xes"].require_dataset("proj_corrected", 
+                                                 shape=(0, size), 
                                                 maxshape=(None, size),
                                                 dtype=self._proj_corr_dset.dtype)  
-                self.hsds["xes"].require_dataset("projected", shape=(0, size), 
+                self.hsds["xes"].require_dataset("projected", 
+                                                shape=(0, size), 
                                                 maxshape=(None, size),
                                                 dtype=self._proj_dset.dtype)  
-
 
             if self.last_roi_len < self._roi_dset.shape[0]:
                 self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
                 self.hsds["xes/proj_corrected"].resize(self._roi_dset.shape[0], axis=0)
                 self.hsds["xes/projected"].resize(self._roi_dset.shape[0], axis=0)
-                a, b = self.last_roi_len, self._roi_dset.shape[0]
+                a, b = 0, self._roi_dset.shape[0]
                 self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
-
                 self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
                 self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
                 self.last_roi_len = self._roi_dset.shape[0]
+            if self.last_frame is not None:
+                if "last_frame" not in self.hsds["xes"]: 
+                    self.hsds["xes"].require_dataset("last_frame", 
+                                                    shape=self.last_frame.shape, 
+                                                    maxshape=self.last_frame.shape,
+                                                    dtype=self.last_frame.dtype) 
+                    self.hsds["xes"].require_dataset("last_proj", 
+                                                    shape=self.last_proj.shape, 
+                                                    maxshape=self.last_proj.shape,
+                                                    dtype=self.last_proj.dtype) 
+                self.hsds["xes/last_frame"][:] = self.last_frame
+                self.hsds["xes/last_proj"][:] = self.last_proj
+
         return 1
 
 
@@ -102,4 +118,7 @@ class BalderReducer:
         self.timer()
         if self._fh is not None:
             self._fh.close()
-        self.hsds.close()
+        try:
+            self.hsds.close()
+        except Exception:
+            pass
