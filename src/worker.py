@@ -6,8 +6,8 @@ from math import sin, radians
 
 from dranspose.middlewares.stream1 import parse as parse_stins
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
-from dranspose.parameters import IntParameter, FloatParameter
 from dranspose.data.positioncap import PositionCapStart, PositionCapValues
+from dranspose.parameters import IntParameter, FloatParameter, BinaryParameter, ParameterName
 
 # from dranspose.middlewares.sardana import parse as sardana_parse
 from dranspose.middlewares.positioncap import PositioncapParser
@@ -45,6 +45,7 @@ class BalderWorker:
             FloatParameter(name="a0", default=0),
             FloatParameter(name="a1", default=0),
             FloatParameter(name="a2", default=0),
+            # BinaryParameter(name=ParameterName("mask"), default=None),
         ]
         return params
 

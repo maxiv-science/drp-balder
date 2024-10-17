@@ -60,7 +60,9 @@ class BalderReducer:
             self._roi_dset[result.event_number-1] = result.payload.roi_sum
             if result.payload.preview is not None:
                 self.last_frame = result.payload.preview
-                self.last_proj = result.payload.projected_corr
+                self.last_proj_corr = result.payload.projected_corr
+                self.last_proj = result.payload.projected
+            self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
 
     def timer(self):
@@ -68,7 +70,7 @@ class BalderReducer:
         if (self._roi_dset is not None):
             if self.last_roi_len == 0:
                 self.hsds.require_group("xes")
-                for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj"): 
+                for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"): 
                     try: 
                         del self.hsds["xes"][dname]
                     except Exception: 
@@ -97,7 +99,7 @@ class BalderReducer:
                 self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
                 self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
                 self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
-                self.last_roi_len = self._roi_dset.shape[0]
+                self.last_roi_len = b
             if self.last_frame is not None:
                 if "last_frame" not in self.hsds["xes"]: 
                     self.hsds["xes"].require_dataset("last_frame", 
@@ -108,14 +110,19 @@ class BalderReducer:
                                                     shape=self.last_proj.shape, 
                                                     maxshape=self.last_proj.shape,
                                                     dtype=self.last_proj.dtype) 
+                    self.hsds["xes"].require_dataset("last_proj_corr", 
+                                                    shape=self.last_proj.shape, 
+                                                    maxshape=self.last_proj.shape,
+                                                    dtype=self.last_proj.dtype) 
                 self.hsds["xes/last_frame"][:] = self.last_frame
                 self.hsds["xes/last_proj"][:] = self.last_proj
+                self.hsds["xes/last_proj_corr"][:] = self.last_proj_corr
 
         return 1
 
 
     def finish(self, parameters=None):
-        self.timer()
+        # self.timer()
         if self._fh is not None:
             self._fh.close()
         try:
