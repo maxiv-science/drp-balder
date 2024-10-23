@@ -1,4 +1,5 @@
 import logging
+import pickle
 from dataclasses import dataclass
 from typing import Optional
 import numpy as np
@@ -45,7 +46,7 @@ class BalderWorker:
             FloatParameter(name="a0", default=0),
             FloatParameter(name="a1", default=0),
             FloatParameter(name="a2", default=0),
-            # BinaryParameter(name=ParameterName("mask"), default=None),
+            BinaryParameter(name=ParameterName("mask"), default=b''),
         ]
         return params
 
@@ -70,10 +71,6 @@ class BalderWorker:
         
 
     def process_event(self, event, parameters=None, tick=False, *args, **kwargs):
-        # from time import sleep
-        # sleep(1)
-        # logger.debug(event) 
-
         # if self.pcap_stream in event.streams:
         #     res = self.pcap.parse(event.streams[self.pcap_stream])
         #     if isinstance(res, PositionCapStart):
@@ -84,12 +81,6 @@ class BalderWorker:
         #         crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
         #         ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
         #         logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
-
-        # FIXME remove code to switch from one test to another
-        # if self.xes_stream is None:
-        #     logger.debug(f"{self.eiger_names} & {set(event.streams)=}")
-        #     logger.debug(f"{(self.eiger_names & set(event.streams))=}")
-        #     self.xes_stream = (self.eiger_names & set(event.streams)).pop()
 
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
@@ -108,11 +99,17 @@ class BalderWorker:
                 else:
                     img = acq.data
                 self._update_correction(parameters, img.shape)
-                mask = img < parameters["mask_greater_than"].value
-                img *= mask
-                projected = np.sum(img,axis=0)
-                w = img.reshape(-1)
-                bins = np.arange(img.shape[1]+1)
+                if parameters["mask"].value != b'':
+                    logger.debug(f"Mask found in parameters")
+                    mask = pickle.loads(parameters["mask"].value)
+                    logger.debug(f"{mask=}")
+                else:
+                    logger.debug(f"No mask found, masking values above {parameters['mask_greater_than']}")
+                    mask = img >= parameters["mask_greater_than"].value
+                masked_img = img * ~mask
+                projected = np.sum(masked_img,axis=0)
+                w = masked_img.reshape(-1)
+                bins = np.arange(masked_img.shape[1]+1)
                 proj_corrected, _ = np.histogram(self.X, weights=w, bins=bins)
                 
                 logger.debug(f"{projected=}")
@@ -120,10 +117,8 @@ class BalderWorker:
                 a = parameters["ROI_from"].value
                 b = parameters["ROI_to"].value
                 roi_sum = np.sum(proj_corrected[a:b])
-                # FIXME properly use tick
-                # tick = (acq.frame%10) == 0
                 if tick:
                     logger.info("Tick received, sending live preview...")
-                    return Result(projected, proj_corrected, roi_sum, img[:])
+                    return Result(projected, proj_corrected, roi_sum, masked_img[:])
                 else:
                     return Result(projected, proj_corrected, roi_sum)
