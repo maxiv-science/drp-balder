@@ -59,9 +59,11 @@ class BalderReducer:
             self._roi_dset.resize(max(1 + result.event_number, oldsize), axis=0)
             self._roi_dset[result.event_number-1] = result.payload.roi_sum
             if result.payload.preview is not None:
-                self.last_frame = result.payload.preview
-                self.last_proj_corr = result.payload.projected_corr
-                self.last_proj = result.payload.projected
+                self.publish["last_frame"] = result.payload.preview
+                self.publish["last_proj_corr"] = result.payload.projected_corr
+                self.publish["last_proj"] = result.payload.projected
+                self.publish["roi_sum"] = np.array(self._roi_dset)
+                self.publish["proj_corrected"] = np.array(self._proj_corr_dset)
             self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
 
@@ -100,7 +102,7 @@ class BalderReducer:
                 self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
                 self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
                 self.last_roi_len = b
-            if self.last_frame is not None:
+            if "last_frame" in self.publish:
                 if "last_frame" not in self.hsds["xes"]: 
                     self.hsds["xes"].require_dataset("last_frame", 
                                                     shape=self.last_frame.shape, 
@@ -114,9 +116,9 @@ class BalderReducer:
                                                     shape=self.last_proj.shape, 
                                                     maxshape=self.last_proj.shape,
                                                     dtype=self.last_proj.dtype) 
-                self.hsds["xes/last_frame"][:] = self.last_frame
-                self.hsds["xes/last_proj"][:] = self.last_proj
-                self.hsds["xes/last_proj_corr"][:] = self.last_proj_corr
+                self.hsds["xes/last_frame"][:] = self.publish["last_frame"]
+                self.hsds["xes/last_proj"][:] = self.publish["last_proj"]
+                self.hsds["xes/last_proj_corr"][:] = self.publish["last_proj_corr"]
 
         return 1
 
