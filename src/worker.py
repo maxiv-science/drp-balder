@@ -51,7 +51,7 @@ class BalderWorker:
         return params
 
     def get_tick_interval(self, parameters=None):
-        return 1000
+        return 1
 
     def _update_correction(self, parameters, shape):
         new_coeffs = (parameters["a2"].value,
