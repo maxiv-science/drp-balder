@@ -1,12 +1,13 @@
 import logging
 from copy import copy
-
+from threading import Lock
 import h5py
 import h5pyd
 import os
 import numpy as np
 
 from .worker import Start, Result
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class BalderReducer:
         self._roi_dset = None
         self.dir = "/entry/instrument/eiger_xes"
         self.last_roi_len = 0
+        self.lock = Lock()
 
     def process_result(self, result, parameters=None):
         if isinstance(result.payload, Start):
@@ -66,66 +68,75 @@ class BalderReducer:
 
 
     def timer(self):
-        logger.info("timer called")
-        if (self._roi_dset is not None):
-            if self.last_roi_len == 0:
-                self.hsds.require_group("xes")
-                for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"): 
-                    try: 
-                        del self.hsds["xes"][dname]
-                    except Exception: 
-                        pass
-                dt_fields = self._roi_dset.dtype
-                # dt_fields = np.dtype({'names': ['roi_sum'],
-                #                 'formats': [(self._roi_dset.dtype)]})
-                self.hsds["xes"].require_dataset("roi_sum", shape=(0,), 
-                                                maxshape=(None,),
-                                                dtype=dt_fields)  
-                size = self._proj_corr_dset.shape[1]
-                self.hsds["xes"].require_dataset("proj_corrected", 
-                                                 shape=(0, size), 
-                                                maxshape=(None, size),
-                                                dtype=self._proj_corr_dset.dtype)  
-                self.hsds["xes"].require_dataset("projected", 
-                                                shape=(0, size), 
-                                                maxshape=(None, size),
-                                                dtype=self._proj_dset.dtype)  
+        next_timer = 0.5
+        with self.lock:
+            if (self._fh is None) or (self.hsds is None):
+                return next_timer
+            logger.info("timer called")
+            if (self._roi_dset is not None):
+                if self.last_roi_len == 0:
+                    self.hsds.require_group("xes")
+                    for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"): 
+                        try: 
+                            del self.hsds["xes"][dname]
+                        except Exception: 
+                            pass
+                    dt_fields = self._roi_dset.dtype
+                    # dt_fields = np.dtype({'names': ['roi_sum'],
+                    #                 'formats': [(self._roi_dset.dtype)]})
+                    self.hsds["xes"].require_dataset("roi_sum", shape=(0,), 
+                                                    maxshape=(None,),
+                                                    dtype=dt_fields)  
+                    size = self._proj_corr_dset.shape[1]
+                    self.hsds["xes"].require_dataset("proj_corrected", 
+                                                    shape=(0, size), 
+                                                    maxshape=(None, size),
+                                                    dtype=self._proj_corr_dset.dtype)  
+                    self.hsds["xes"].require_dataset("projected", 
+                                                    shape=(0, size), 
+                                                    maxshape=(None, size),
+                                                    dtype=self._proj_dset.dtype)  
 
-            if self.last_roi_len < self._roi_dset.shape[0]:
-                self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
-                self.hsds["xes/proj_corrected"].resize(self._roi_dset.shape[0], axis=0)
-                self.hsds["xes/projected"].resize(self._roi_dset.shape[0], axis=0)
-                a, b = 0, self._roi_dset.shape[0]
-                self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
-                self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
-                self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
-                self.last_roi_len = b
-            if self.last_frame is not None:
-                if "last_frame" not in self.hsds["xes"]: 
-                    self.hsds["xes"].require_dataset("last_frame", 
-                                                    shape=self.last_frame.shape, 
-                                                    maxshape=self.last_frame.shape,
-                                                    dtype=self.last_frame.dtype) 
-                    self.hsds["xes"].require_dataset("last_proj", 
-                                                    shape=self.last_proj.shape, 
-                                                    maxshape=self.last_proj.shape,
-                                                    dtype=self.last_proj.dtype) 
-                    self.hsds["xes"].require_dataset("last_proj_corr", 
-                                                    shape=self.last_proj.shape, 
-                                                    maxshape=self.last_proj.shape,
-                                                    dtype=self.last_proj.dtype) 
-                self.hsds["xes/last_frame"][:] = self.last_frame
-                self.hsds["xes/last_proj"][:] = self.last_proj
-                self.hsds["xes/last_proj_corr"][:] = self.last_proj_corr
+                if self.last_roi_len < self._roi_dset.shape[0]:
+                    self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
+                    self.hsds["xes/proj_corrected"].resize(self._roi_dset.shape[0], axis=0)
+                    self.hsds["xes/projected"].resize(self._roi_dset.shape[0], axis=0)
+                    a, b = 0, self._roi_dset.shape[0]
+                    self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
+                    self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
+                    self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
+                    self.last_roi_len = b
+                if self.last_frame is not None:
+                    logger.info("create live frame preview in hsds")
+                    if "last_frame" not in self.hsds["xes"]: 
+                        self.hsds["xes"].require_dataset("last_frame", 
+                                                        shape=self.last_frame.shape, 
+                                                        maxshape=self.last_frame.shape,
+                                                        dtype=self.last_frame.dtype) 
+                        self.hsds["xes"].require_dataset("last_proj", 
+                                                        shape=self.last_proj.shape, 
+                                                        maxshape=self.last_proj.shape,
+                                                        dtype=self.last_proj.dtype) 
+                        self.hsds["xes"].require_dataset("last_proj_corr", 
+                                                        shape=self.last_proj.shape, 
+                                                        maxshape=self.last_proj.shape,
+                                                        dtype=self.last_proj.dtype) 
+                    self.hsds["xes/last_frame"][:] = self.last_frame
+                    self.hsds["xes/last_proj"][:] = self.last_proj
+                    self.hsds["xes/last_proj_corr"][:] = self.last_proj_corr
 
-        return 1
+            return next_timer
 
 
     def finish(self, parameters=None):
-        # self.timer()
-        if self._fh is not None:
-            self._fh.close()
-        try:
-            self.hsds.close()
-        except Exception:
-            pass
+        self.timer()
+        logger.info("FINISH THEM!!!")
+        with self.lock:
+            if self._fh is not None:
+                self._fh.close()
+                self._fh = None
+            try:
+                self.hsds.close()
+            except Exception:
+                pass
+            self.hsds = None
