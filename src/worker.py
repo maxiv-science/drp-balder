@@ -5,7 +5,9 @@ from typing import Optional
 import numpy as np
 from math import sin, radians
 
+import json
 from dranspose.middlewares.stream1 import parse as parse_stins
+from dranspose.middlewares.positioncap import PositioncapParser
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
 from dranspose.data.positioncap import PositionCapStart, PositionCapValues
 from dranspose.parameters import IntParameter, FloatParameter, BinaryParameter, ParameterName
@@ -35,6 +37,7 @@ class BalderWorker:
         self.pcap_stream = "pcap"
         self.pcap = PositioncapParser()
         self.coeffs = None
+        self.pcap = PositioncapParser()
         self.X = None
 
     @staticmethod
