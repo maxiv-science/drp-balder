@@ -10,6 +10,8 @@ variables:
 
 test_docker_image:
   stage: test
+  tags:
+    - kubernetes
   image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
   script:
     - echo "test actual image"
