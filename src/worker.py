@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Start:
     filename: str
+    motor_name: str
 
 
 @dataclass
@@ -113,7 +114,7 @@ class BalderWorker:
             logger.debug(f"message parsed {acq}")
             if isinstance(acq, Stream1Start):
                 logger.info("start message %s", acq)
-                return Start(acq.filename)
+                return Start(acq.filename, self.motor)
             elif isinstance(acq, Stream1Data):
                 logger.info("image message %s", acq)
                 if "bslz4" in acq.compression:
