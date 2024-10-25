@@ -1,10 +1,15 @@
 import logging
 from copy import copy
 from threading import Lock
+from typing import Any
+
 import h5py
 import h5pyd
 import os
 import numpy as np
+
+from dranspose.event import ResultData
+from dranspose.protocol import ParameterName, WorkParameter
 
 from .worker import Start, Result
 
@@ -13,21 +18,21 @@ logger = logging.getLogger(__name__)
 
 
 class BalderReducer:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         # self.hsds = h5pyd.File("http://balder-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin",
         #                        password="admin", mode="a")
-        self.roi_sum = {
+        self.roi_sum: dict[str, Any] = {
             "data_attrs": {"long_name": "photons"},
             # "data": np.ones((42)),
             "motor_attrs": {"long_name": "motor"},
             # "motor": np.linspace(0,1,42),
         }
-        self.proj_corrected = {
+        self.proj_corrected: dict[str, Any] = {
             "motor_attrs": {"long_name": "motor"},
             #    "frame": np.ones((42, 42)),
             #    "motor": np.linspace(0, 1, 42),
         }
-        self.pub_xes = {
+        self.pub_xes: dict[str, Any] = {
             "roi_sum_attrs": {
                 "NX_class": "NXdata",
                 "axes": ["motor"],
@@ -43,17 +48,19 @@ class BalderReducer:
             "proj_corrected": self.proj_corrected,
         }
         self.publish = {"xes": self.pub_xes}
-        self.projections = []
-        self._fh = None
-        self._proj_dset = None
-        self._proj_corr_dset = None
-        self._roi_dset = None
-        self._pos_dset = None
+        # self.projections: list[Any] = []
+        self._fh: h5py.File | None = None
+        self._proj_dset: h5py.Dataset | None = None
+        self._proj_corr_dset: h5py.Dataset | None = None
+        self._roi_dset: h5py.Dataset | None = None
+        self._pos_dset: h5py.Dataset | None = None
         self.dir = "/entry/instrument/eiger_xes"
         self.last_roi_len = 0
         # self.lock = Lock()
 
-    def process_result(self, result, parameters=None):
+    def process_result(
+        self, result: ResultData, parameters: dict[ParameterName, WorkParameter]
+    ) -> None:
         if isinstance(result.payload, Start):
             logger.info("start message")
             self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
@@ -71,17 +78,20 @@ class BalderReducer:
                     logger.warning(
                         f"Could not write to file {dest_filename}. Will work in live mode only."
                     )
-                limits = (parameters["ROI_from"].value, parameters["ROI_to"].value)
+                limits = (
+                    parameters[ParameterName("ROI_from")].value,
+                    parameters[ParameterName("ROI_to")].value,
+                )
                 self._fh.create_dataset(f"{self.dir}/ROI_limits", data=limits)
                 coeffs = (
-                    parameters["a0"].value,
-                    parameters["a1"].value,
-                    parameters["a2"].value,
+                    parameters[ParameterName("a0")].value,
+                    parameters[ParameterName("a1")].value,
+                    parameters[ParameterName("a2")].value,
                 )
                 self._fh.create_dataset(f"{self.dir}/coefficients", data=coeffs)
         elif isinstance(result.payload, Result):
             logger.debug("got result %s", result.payload)
-            if self._proj_dset is None:
+            if self._proj_dset is None and self._fh is not None:
                 size = result.payload.projected.shape[0]
                 dtype = result.payload.projected.dtype
                 self._proj_dset = self._fh.create_dataset(
@@ -100,6 +110,10 @@ class BalderReducer:
                 self._pos_dset = self._fh.create_dataset(
                     f"{self.dir}/motor_pos", (0,), maxshape=(None,), dtype="float"
                 )
+            assert self._proj_dset is not None
+            assert self._proj_corr_dset is not None
+            assert self._roi_dset is not None
+            assert self._pos_dset is not None
             oldsize = self._proj_dset.shape[0]
             newsize = max(result.event_number, oldsize)
             self._proj_dset.resize(newsize, axis=0)
@@ -183,7 +197,9 @@ class BalderReducer:
 
     #         return next_timer
 
-    def finish(self, parameters=None):
+    def finish(
+        self, parameters: dict[ParameterName, WorkParameter] | None = None
+    ) -> None:
         # self.timer()
         logger.info("FINISH THEM!!!")
         # with self.lock:
