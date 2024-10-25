@@ -17,10 +17,10 @@ class BalderReducer:
         #                        password="admin", mode="a")
         self.roi_sum = {"data_attrs": {"long_name": "photons"},
                         # "data": np.ones((42)),
-                        "motor_attrs": {"long_name": "motor name"},
+                        "motor_attrs": {"long_name": "motor"},
                         # "motor": np.linspace(0,1,42),
                         }
-        self.proj_corrected = {"motor_attrs": {"long_name": "motor name"},
+        self.proj_corrected = {"motor_attrs": {"long_name": "motor"},
                             #    "frame": np.ones((42, 42)),
                             #    "motor": np.linspace(0, 1, 42),
                             }
@@ -43,6 +43,8 @@ class BalderReducer:
     def process_result(self, result, parameters=None):
         if isinstance(result.payload, Start):
             logger.info("start message")
+            self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
+            self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
             if self._fh is None:
                 name, ext = os.path.splitext(result.payload.filename)
                 dest_filename = f"{name}_processed{ext}"
@@ -67,7 +69,7 @@ class BalderReducer:
                 self._roi_dset = self._fh.create_dataset(f"{self.dir}/ROI_sum", (0, ), maxshape=(None, ), dtype=dtype)
                 self._pos_dset = self._fh.create_dataset(f"{self.dir}/motor_pos", (0, ), maxshape=(None, ), dtype="float")
             oldsize = self._proj_dset.shape[0]
-            newsize = max(1 + result.event_number, oldsize)
+            newsize = max(result.event_number, oldsize)
             self._proj_dset.resize(newsize, axis=0)
             self._proj_dset[result.event_number-1] = result.payload.projected
             self._proj_corr_dset.resize(newsize, axis=0)
