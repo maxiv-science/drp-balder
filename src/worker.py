@@ -106,6 +106,7 @@ class BalderWorker:
                 motor_pos = getattr(res, self.motor)
                 logger.debug(f"{motor_pos=}")
         else:
+            self.motor = "unknown"
             motor_pos = 0
 
         if self.xes_stream in event.streams:
