@@ -12,6 +12,8 @@ FROM harbor.maxiv.lu.se/dockerhub/library/ubuntu:latest AS runtime
 ENV PATH /venv/bin:$PATH
 COPY --from=build /venv /venv
 
+ENV HDF5_PLUGIN_PATH /venv/lib/hdf5/plugin
+
 RUN apt-get update && apt-get install -y build-essential
 
 ARG CI_COMMIT_SHA=0000
