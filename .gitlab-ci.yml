@@ -1,5 +1,7 @@
 include:
   - project: 'kits-maxiv/cfg-maxiv-gitlabci'
+    file: '/PreCommit.gitlab-ci.yml'
+  - project: 'kits-maxiv/cfg-maxiv-gitlabci'
     file: '/Docker.gitlab-ci.yml'
 
 variables:
@@ -14,8 +16,6 @@ test_docker_image:
     - kubernetes
   image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
   script:
-    - echo "test actual image"
-    - ls
-    - pwd
-    - python -m pip install pytest
-    - pytest --log-cli-level=INFO
+    - python -m pip install pytest pytest-cov
+    - pytest --cov=src --cov-branch --cov-report term-missing --cov-report html --log-cli-level=INFO
+  coverage: '/^TOTAL.+?(\d+\%)$/'
