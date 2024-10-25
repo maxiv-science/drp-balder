@@ -5,16 +5,18 @@ from glob import glob
 import h5pyd
 from dranspose.replay import replay
 
-def test_replay_h5():
 
-    replay("src.worker:BalderWorker",
-    "src.reducer:BalderReducer",
-           None,
-    "src.hdf5_sources:XESSource",
-    "params.json")
+def test_replay_h5():
+    replay(
+        "src.worker:BalderWorker",
+        "src.reducer:BalderReducer",
+        None,
+        "src.hdf5_sources:XESSource",
+        "params.json",
+    )
+
 
 def test_livequery():
-
     stop_event = threading.Event()
     done_event = threading.Event()
 
@@ -25,11 +27,13 @@ def test_livequery():
             "src.reducer:BalderReducer",
             list(glob("data/*0398d78d1782.cbors")),
             None,
-            "params.json"
+            "params.json",
         ),
         kwargs={"port": 5010, "stop_event": stop_event, "done_event": done_event},
     )
     thread.start()
+
+    # do live queries
 
     done_event.wait()
 
