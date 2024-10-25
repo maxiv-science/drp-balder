@@ -97,6 +97,8 @@ class BalderWorker:
             elif isinstance(res, SardanaRecordData):
                 motor_pos = getattr(res, self.motor)
                 logger.debug(f"{motor_pos=}")
+        else:
+            motor_pos = 0
 
 
         if self.xes_stream in event.streams:
