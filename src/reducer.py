@@ -15,12 +15,27 @@ class BalderReducer:
     def __init__(self, *args, **kwargs):
         # self.hsds = h5pyd.File("http://balder-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin",
         #                        password="admin", mode="a")
-        self.publish = {"map": {}, "control":{}}
+        self.roi_sum = {"data_attrs": {"long_name": "photons"},
+                        # "data": np.ones((42)),
+                        "motor_attrs": {"long_name": "motor name"},
+                        # "motor": np.linspace(0,1,42),
+                        }
+        self.proj_corrected = {"motor_attrs": {"long_name": "motor name"},
+                            #    "frame": np.ones((42, 42)),
+                            #    "motor": np.linspace(0, 1, 42),
+                            }
+        self.pub_xes= {"roi_sum_attrs": {"NX_class": "NXdata", "axes": ["motor"], "signal": "data"},
+                       "roi_sum": self.roi_sum,
+                       "proj_corrected_attrs": {"NX_class": "NXdata", "axes": ["motor", "."], "signal": "frame", "interpretation": "image"},
+                       "proj_corrected": self.proj_corrected,
+                       }
+        self.publish = {"xes": self.pub_xes}
         self.projections = []
         self._fh = None
         self._proj_dset = None
         self._proj_corr_dset = None
         self._roi_dset = None
+        self._pos_dset = None
         self.dir = "/entry/instrument/eiger_xes"
         self.last_roi_len = 0
         # self.lock = Lock()
@@ -50,6 +65,7 @@ class BalderReducer:
                 dtype = result.payload.projected_corr.dtype
                 self._proj_corr_dset = self._fh.create_dataset(f"{self.dir}/proj_corrected", (0, size), maxshape=(None, size), dtype=dtype)
                 self._roi_dset = self._fh.create_dataset(f"{self.dir}/ROI_sum", (0, ), maxshape=(None, ), dtype=dtype)
+                self._pos_dset = self._fh.create_dataset(f"{self.dir}/motor_pos", (0, ), maxshape=(None, ), dtype="float")
             oldsize = self._proj_dset.shape[0]
             newsize = max(1 + result.event_number, oldsize)
             self._proj_dset.resize(newsize, axis=0)
@@ -58,14 +74,18 @@ class BalderReducer:
             self._proj_corr_dset[result.event_number-1] = result.payload.projected_corr
             self._roi_dset.resize(newsize, axis=0)
             self._roi_dset[result.event_number-1] = result.payload.roi_sum
+            self._pos_dset.resize(newsize, axis=0)
+            self._pos_dset[result.event_number-1] = result.payload.motor_pos
+            # publish results and live preview
             if result.payload.preview is not None:
-                self.publish["last_frame"] = result.payload.preview
-                self.publish["last_proj_corr"] = result.payload.projected_corr
-                self.publish["last_proj"] = result.payload.projected
-                self.publish["roi_sum"] = np.array(self._roi_dset)
-                self.publish["proj_corrected"] = np.array(self._proj_corr_dset)
-                self.publish["proj_corrected"] = np.array(self._proj_corr_dset)
-            self.last_roi_len = min(self.last_roi_len, result.event_number-1)
+                self.pub_xes["last_frame"] = result.payload.preview
+                self.roi_sum["data"] = np.array(self._roi_dset)
+                self.roi_sum["motor"] = np.array(self._pos_dset)
+                self.proj_corrected["frame"] = np.array(self._proj_corr_dset)
+                self.proj_corrected["motor"] = np.array(self._pos_dset)
+                self.pub_xes["last_proj_corr"] = result.payload.projected_corr
+
+            # self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
 
     # def timer(self):
