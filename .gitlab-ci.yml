@@ -8,3 +8,12 @@ variables:
   DOCKER_BUILD_EXTRA_ARGS: --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA --build-arg CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME --build-arg CI_COMMIT_TIMESTAMP=$CI_COMMIT_TIMESTAMP --build-arg CI_PROJECT_URL=$CI_PROJECT_URL
 
 
+test_docker_image:
+  stage: test
+  image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+  script:
+    - echo "test actual image"
+    - ls
+    - pwd
+    - python -m pip install pytest
+    - pytest --log-cli-level=INFO
