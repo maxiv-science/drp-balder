@@ -8,8 +8,10 @@ from math import sin, radians
 import json
 from dranspose.middlewares.stream1 import parse as parse_stins
 from dranspose.middlewares.positioncap import PositioncapParser
+from dranspose.middlewares.sardana import parse as parse_sardana
 from dranspose.data.stream1 import Stream1Data, Stream1Start, Stream1End
 from dranspose.data.positioncap import PositionCapStart, PositionCapValues
+from dranspose.data.sardana import SardanaDataDescription, SardanaRecordData
 from dranspose.parameters import IntParameter, FloatParameter, BinaryParameter, ParameterName
 
 # from dranspose.middlewares.sardana import parse as sardana_parse
@@ -28,12 +30,13 @@ class Result:
     projected: list[int]
     projected_corr: list[int]
     roi_sum: int
+    motor_pos: float
     preview: Optional[list[int,int]] = None
 
 class BalderWorker:
     def __init__(self, *args, **kwargs):
-        self.xes_stream = "eigerxes" # None # "eigerxes"
-        # self.eiger_names = {"eiger-1m", "eigerxes"}
+        self.xes_stream = "eigerxes"
+        self.sardana_stream = "sardana"
         self.pcap_stream = "pcap"
         self.pcap = PositioncapParser()
         self.coeffs = None
@@ -84,6 +87,17 @@ class BalderWorker:
         #         crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
         #         ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
         #         logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
+        if self.sardana_stream in event.streams:
+            res = parse_sardana(event.streams[self.sardana_stream])
+            logger.debug(f"{res=} found")
+            if isinstance(res, SardanaDataDescription):
+                self.motor = res.ref_moveables[0]
+                # self.motor = res.title.split(" ")[1]
+                logger.debug(f"{self.motor=}")
+            elif isinstance(res, SardanaRecordData):
+                motor_pos = getattr(res, self.motor)
+                logger.debug(f"{motor_pos=}")
+
 
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
@@ -115,13 +129,11 @@ class BalderWorker:
                 bins = np.arange(masked_img.shape[1]+1)
                 proj_corrected, _ = np.histogram(self.X, weights=w, bins=bins)
                 
-                logger.debug(f"{projected=}")
-                logger.debug(f"{proj_corrected=}")
                 a = parameters["ROI_from"].value
                 b = parameters["ROI_to"].value
                 roi_sum = np.sum(proj_corrected[a:b])
                 if tick:
                     logger.info("Tick received, sending live preview...")
-                    return Result(projected, proj_corrected, roi_sum, masked_img[:])
+                    return Result(projected, proj_corrected, roi_sum, motor_pos, masked_img[:])
                 else:
-                    return Result(projected, proj_corrected, roi_sum)
+                    return Result(projected, proj_corrected, roi_sum, motor_pos)
