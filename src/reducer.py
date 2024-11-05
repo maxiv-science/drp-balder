@@ -1,46 +1,66 @@
 import logging
 from copy import copy
 from threading import Lock
+from typing import Any
+
 import h5py
 import h5pyd
 import os
 import numpy as np
+
+from dranspose.event import ResultData
+from dranspose.protocol import ParameterName, WorkParameter
 
 from .worker import Start, Result
 
 
 logger = logging.getLogger(__name__)
 
+
 class BalderReducer:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         # self.hsds = h5pyd.File("http://balder-pipeline-hsds.daq.maxiv.lu.se/home/live", username="admin",
         #                        password="admin", mode="a")
-        self.roi_sum = {"data_attrs": {"long_name": "photons"},
-                        # "data": np.ones((42)),
-                        "motor_attrs": {"long_name": "motor"},
-                        # "motor": np.linspace(0,1,42),
-                        }
-        self.proj_corrected = {"motor_attrs": {"long_name": "motor"},
-                            #    "frame": np.ones((42, 42)),
-                            #    "motor": np.linspace(0, 1, 42),
-                            }
-        self.pub_xes= {"roi_sum_attrs": {"NX_class": "NXdata", "axes": ["motor"], "signal": "data"},
-                       "roi_sum": self.roi_sum,
-                       "proj_corrected_attrs": {"NX_class": "NXdata", "axes": ["motor", "."], "signal": "frame", "interpretation": "image"},
-                       "proj_corrected": self.proj_corrected,
-                       }
+        self.roi_sum: dict[str, Any] = {
+            "data_attrs": {"long_name": "photons"},
+            # "data": np.ones((42)),
+            "motor_attrs": {"long_name": "motor"},
+            # "motor": np.linspace(0,1,42),
+        }
+        self.proj_corrected: dict[str, Any] = {
+            "motor_attrs": {"long_name": "motor"},
+            #    "frame": np.ones((42, 42)),
+            #    "motor": np.linspace(0, 1, 42),
+        }
+        self.pub_xes: dict[str, Any] = {
+            "roi_sum_attrs": {
+                "NX_class": "NXdata",
+                "axes": ["motor"],
+                "signal": "data",
+            },
+            "roi_sum": self.roi_sum,
+            "proj_corrected_attrs": {
+                "NX_class": "NXdata",
+                "axes": ["motor", "."],
+                "signal": "frame",
+                "interpretation": "image",
+            },
+            "proj_corrected": self.proj_corrected,
+        }
         self.publish = {"xes": self.pub_xes}
-        self.projections = []
-        self._fh = None
-        self._proj_dset = None
-        self._proj_corr_dset = None
-        self._roi_dset = None
-        self._pos_dset = None
+        # self.projections: list[Any] = []
+        self._fh: h5py.File | None = None
+        self._proj_dset: h5py.Dataset | None = None
+        self._proj_corr_dset: h5py.Dataset | None = None
+        self._roi_dset: h5py.Dataset | None = None
+        self._pos_dset: h5py.Dataset | None = None
         self.dir = "/entry/instrument/eiger_xes"
         self.last_roi_len = 0
         # self.lock = Lock()
 
-    def process_result(self, result, parameters=None):
+    def process_result(
+        self, result: ResultData, parameters: dict[ParameterName, WorkParameter]
+    ) -> None:
         if isinstance(result.payload, Start):
             logger.info("start message")
             self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
@@ -50,34 +70,62 @@ class BalderReducer:
                 dest_filename = f"{name}_processed{ext}"
                 try:
                     os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
-                    self._fh = h5py.File(dest_filename, 'w')
+                    self._fh = h5py.File(dest_filename, "w")
                 except Exception:
-                    self._fh = h5py.File(dest_filename, 'w', driver='core', backing_store=False)
-                    logger.warning(f"Could not write to file {dest_filename}. Will work in live mode only.")
-                limits = (parameters["ROI_from"].value, parameters["ROI_to"].value)
+                    self._fh = h5py.File(
+                        dest_filename, "w", driver="core", backing_store=False
+                    )
+                    logger.warning(
+                        f"Could not write to file {dest_filename}. Will work in live mode only."
+                    )
+                limits = (
+                    parameters[ParameterName("ROI_from")].value,
+                    parameters[ParameterName("ROI_to")].value,
+                )
                 self._fh.create_dataset(f"{self.dir}/ROI_limits", data=limits)
-                coeffs = (parameters["a0"].value, parameters["a1"].value, parameters["a2"].value)
+                coeffs = (
+                    parameters[ParameterName("a0")].value,
+                    parameters[ParameterName("a1")].value,
+                    parameters[ParameterName("a2")].value,
+                )
                 self._fh.create_dataset(f"{self.dir}/coefficients", data=coeffs)
         elif isinstance(result.payload, Result):
             logger.debug("got result %s", result.payload)
-            if self._proj_dset is None:
+            if self._proj_dset is None and self._fh is not None:
                 size = result.payload.projected.shape[0]
                 dtype = result.payload.projected.dtype
-                self._proj_dset = self._fh.create_dataset(f"{self.dir}/proj", (0, size), maxshape=(None, size), dtype=dtype)
+                self._proj_dset = self._fh.create_dataset(
+                    f"{self.dir}/proj", (0, size), maxshape=(None, size), dtype=dtype
+                )
                 dtype = result.payload.projected_corr.dtype
-                self._proj_corr_dset = self._fh.create_dataset(f"{self.dir}/proj_corrected", (0, size), maxshape=(None, size), dtype=dtype)
-                self._roi_dset = self._fh.create_dataset(f"{self.dir}/ROI_sum", (0, ), maxshape=(None, ), dtype=dtype)
-                self._pos_dset = self._fh.create_dataset(f"{self.dir}/motor_pos", (0, ), maxshape=(None, ), dtype="float")
+                self._proj_corr_dset = self._fh.create_dataset(
+                    f"{self.dir}/proj_corrected",
+                    (0, size),
+                    maxshape=(None, size),
+                    dtype=dtype,
+                )
+                self._roi_dset = self._fh.create_dataset(
+                    f"{self.dir}/ROI_sum", (0,), maxshape=(None,), dtype=dtype
+                )
+                self._pos_dset = self._fh.create_dataset(
+                    f"{self.dir}/motor_pos", (0,), maxshape=(None,), dtype="float"
+                )
+            assert self._proj_dset is not None
+            assert self._proj_corr_dset is not None
+            assert self._roi_dset is not None
+            assert self._pos_dset is not None
             oldsize = self._proj_dset.shape[0]
             newsize = max(result.event_number, oldsize)
             self._proj_dset.resize(newsize, axis=0)
-            self._proj_dset[result.event_number-1] = result.payload.projected
+            self._proj_dset[result.event_number - 1] = result.payload.projected
             self._proj_corr_dset.resize(newsize, axis=0)
-            self._proj_corr_dset[result.event_number-1] = result.payload.projected_corr
+            self._proj_corr_dset[
+                result.event_number - 1
+            ] = result.payload.projected_corr
             self._roi_dset.resize(newsize, axis=0)
-            self._roi_dset[result.event_number-1] = result.payload.roi_sum
+            self._roi_dset[result.event_number - 1] = result.payload.roi_sum
             self._pos_dset.resize(newsize, axis=0)
-            self._pos_dset[result.event_number-1] = result.payload.motor_pos
+            self._pos_dset[result.event_number - 1] = result.payload.motor_pos
             # publish results and live preview
             if result.payload.preview is not None:
                 self.pub_xes["last_frame"] = result.payload.preview
@@ -89,7 +137,6 @@ class BalderReducer:
 
             # self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
-
     # def timer(self):
     #     logger.info("timer called")
     #     next_timer = 0.5
@@ -99,26 +146,26 @@ class BalderReducer:
     #         if (self._roi_dset is not None):
     #             if self.last_roi_len == 0:
     #                 self.hsds.require_group("xes")
-    #                 for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"): 
-    #                     try: 
+    #                 for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"):
+    #                     try:
     #                         del self.hsds["xes"][dname]
-    #                     except Exception: 
+    #                     except Exception:
     #                         pass
     #                 dt_fields = self._roi_dset.dtype
     #                 # dt_fields = np.dtype({'names': ['roi_sum'],
     #                 #                 'formats': [(self._roi_dset.dtype)]})
-    #                 self.hsds["xes"].require_dataset("roi_sum", shape=(0,), 
+    #                 self.hsds["xes"].require_dataset("roi_sum", shape=(0,),
     #                                                 maxshape=(None,),
-    #                                                 dtype=dt_fields)  
+    #                                                 dtype=dt_fields)
     #                 size = self._proj_corr_dset.shape[1]
-    #                 self.hsds["xes"].require_dataset("proj_corrected", 
-    #                                                 shape=(0, size), 
+    #                 self.hsds["xes"].require_dataset("proj_corrected",
+    #                                                 shape=(0, size),
     #                                                 maxshape=(None, size),
-    #                                                 dtype=self._proj_corr_dset.dtype)  
-    #                 self.hsds["xes"].require_dataset("projected", 
-    #                                                 shape=(0, size), 
+    #                                                 dtype=self._proj_corr_dset.dtype)
+    #                 self.hsds["xes"].require_dataset("projected",
+    #                                                 shape=(0, size),
     #                                                 maxshape=(None, size),
-    #                                                 dtype=self._proj_dset.dtype)  
+    #                                                 dtype=self._proj_dset.dtype)
 
     #             if self.last_roi_len < self._roi_dset.shape[0]:
     #                 self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
@@ -131,27 +178,28 @@ class BalderReducer:
     #                 self.last_roi_len = b
     #             if "last_frame" in self.publish:
     #                 logger.info("create live frame preview in hsds")
-    #                 if "last_frame" not in self.hsds["xes"]: 
-    #                     self.hsds["xes"].require_dataset("last_frame", 
-    #                                                     shape=self.publish["last_frame"].shape, 
+    #                 if "last_frame" not in self.hsds["xes"]:
+    #                     self.hsds["xes"].require_dataset("last_frame",
+    #                                                     shape=self.publish["last_frame"].shape,
     #                                                     maxshape=self.publish["last_frame"].shape,
-    #                                                     dtype=self.publish["last_frame"].dtype) 
-    #                     self.hsds["xes"].require_dataset("last_proj", 
-    #                                                     shape=self.publish["last_proj"].shape, 
+    #                                                     dtype=self.publish["last_frame"].dtype)
+    #                     self.hsds["xes"].require_dataset("last_proj",
+    #                                                     shape=self.publish["last_proj"].shape,
     #                                                     maxshape=self.publish["last_proj"].shape,
-    #                                                     dtype=self.publish["last_proj"].dtype) 
-    #                     self.hsds["xes"].require_dataset("last_proj_corr", 
-    #                                                     shape=self.publish["last_proj"].shape, 
+    #                                                     dtype=self.publish["last_proj"].dtype)
+    #                     self.hsds["xes"].require_dataset("last_proj_corr",
+    #                                                     shape=self.publish["last_proj"].shape,
     #                                                     maxshape=self.publish["last_proj"].shape,
-    #                                                     dtype=self.publish["last_proj"].dtype) 
+    #                                                     dtype=self.publish["last_proj"].dtype)
     #                 self.hsds["xes/last_frame"][:] = self.publish["last_frame"]
     #                 self.hsds["xes/last_proj"][:] = self.publish["last_proj"]
     #                 self.hsds["xes/last_proj_corr"][:] = self.publish["last_proj_corr"]
 
     #         return next_timer
 
-
-    def finish(self, parameters=None):
+    def finish(
+        self, parameters: dict[ParameterName, WorkParameter] | None = None
+    ) -> None:
         # self.timer()
         logger.info("FINISH THEM!!!")
         # with self.lock:

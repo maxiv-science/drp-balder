@@ -8,9 +8,9 @@
      - [ ] or via reading pcap zmq stream
 
 ## Nice to have
- - [ ] send mask to dranspose as [binary parameters](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_replay.py#L202) via [REST interface](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_parameters.py#L114) 
- - [ ] write custom live viewer 
- - [ ] energy scale from PCAP on y axis 
+ - [ ] send mask to dranspose as [binary parameters](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_replay.py#L202) via [REST interface](https://gitlab.maxiv.lu.se/scisw/daq-modules/dranspose/-/blob/main/tests/test_parameters.py#L114)
+ - [ ] write custom live viewer
+ - [ ] energy scale from PCAP on y axis
 
 
 ## FIXME
