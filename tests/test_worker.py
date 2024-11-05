@@ -6,7 +6,7 @@ import h5pyd
 from dranspose.replay import replay
 
 
-def test_replay_h5():
+def test_replay_h5() -> None:
     replay(
         "src.worker:BalderWorker",
         "src.reducer:BalderReducer",
@@ -16,7 +16,7 @@ def test_replay_h5():
     )
 
 
-def test_livequery():
+def test_livequery() -> None:
     stop_event = threading.Event()
     done_event = threading.Event()
 
