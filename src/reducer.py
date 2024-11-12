@@ -78,6 +78,10 @@ class BalderReducer:
                     logger.warning(
                         f"Could not write to file {dest_filename}. Will work in live mode only."
                     )
+                if result.payload.sardana_filename != "":
+                    self._fh["/raw_data"] = h5py.ExternalLink(
+                        result.payload.sardana_filename, "/"
+                    )
                 limits = (
                     parameters[ParameterName("ROI_from")].value,
                     parameters[ParameterName("ROI_to")].value,
@@ -137,80 +141,9 @@ class BalderReducer:
 
             # self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
-    # def timer(self):
-    #     logger.info("timer called")
-    #     next_timer = 0.5
-    #     if (self._fh is None) or (self.hsds is None):
-    #         return next_timer
-    #     with self.lock:
-    #         if (self._roi_dset is not None):
-    #             if self.last_roi_len == 0:
-    #                 self.hsds.require_group("xes")
-    #                 for dname in ("roi_sum", "proj_corrected", "projected", "last_frame", "last_proj","last_proj_corr"):
-    #                     try:
-    #                         del self.hsds["xes"][dname]
-    #                     except Exception:
-    #                         pass
-    #                 dt_fields = self._roi_dset.dtype
-    #                 # dt_fields = np.dtype({'names': ['roi_sum'],
-    #                 #                 'formats': [(self._roi_dset.dtype)]})
-    #                 self.hsds["xes"].require_dataset("roi_sum", shape=(0,),
-    #                                                 maxshape=(None,),
-    #                                                 dtype=dt_fields)
-    #                 size = self._proj_corr_dset.shape[1]
-    #                 self.hsds["xes"].require_dataset("proj_corrected",
-    #                                                 shape=(0, size),
-    #                                                 maxshape=(None, size),
-    #                                                 dtype=self._proj_corr_dset.dtype)
-    #                 self.hsds["xes"].require_dataset("projected",
-    #                                                 shape=(0, size),
-    #                                                 maxshape=(None, size),
-    #                                                 dtype=self._proj_dset.dtype)
-
-    #             if self.last_roi_len < self._roi_dset.shape[0]:
-    #                 self.hsds["xes/roi_sum"].resize(self._roi_dset.shape[0], axis=0)
-    #                 self.hsds["xes/proj_corrected"].resize(self._roi_dset.shape[0], axis=0)
-    #                 self.hsds["xes/projected"].resize(self._roi_dset.shape[0], axis=0)
-    #                 a, b = 0, self._roi_dset.shape[0]
-    #                 self.hsds["xes/roi_sum"][a:b] = self._roi_dset[a:b]
-    #                 self.hsds["xes/proj_corrected"][a:b] = self._proj_corr_dset[a:b]
-    #                 self.hsds["xes/projected"][a:b] = self._proj_dset[a:b]
-    #                 self.last_roi_len = b
-    #             if "last_frame" in self.publish:
-    #                 logger.info("create live frame preview in hsds")
-    #                 if "last_frame" not in self.hsds["xes"]:
-    #                     self.hsds["xes"].require_dataset("last_frame",
-    #                                                     shape=self.publish["last_frame"].shape,
-    #                                                     maxshape=self.publish["last_frame"].shape,
-    #                                                     dtype=self.publish["last_frame"].dtype)
-    #                     self.hsds["xes"].require_dataset("last_proj",
-    #                                                     shape=self.publish["last_proj"].shape,
-    #                                                     maxshape=self.publish["last_proj"].shape,
-    #                                                     dtype=self.publish["last_proj"].dtype)
-    #                     self.hsds["xes"].require_dataset("last_proj_corr",
-    #                                                     shape=self.publish["last_proj"].shape,
-    #                                                     maxshape=self.publish["last_proj"].shape,
-    #                                                     dtype=self.publish["last_proj"].dtype)
-    #                 self.hsds["xes/last_frame"][:] = self.publish["last_frame"]
-    #                 self.hsds["xes/last_proj"][:] = self.publish["last_proj"]
-    #                 self.hsds["xes/last_proj_corr"][:] = self.publish["last_proj_corr"]
-
-    #         return next_timer
-
     def finish(
         self, parameters: dict[ParameterName, WorkParameter] | None = None
     ) -> None:
-        # self.timer()
         logger.info("FINISH THEM!!!")
-        # with self.lock:
-        #     if self._fh is not None:
-        #         self._fh.close()
-        #         self._fh = None
-        #     try:
-        #         self.hsds.close()
-        #     except Exception:
-        #         pass
-        #     self.hsds = None
         if self._fh is not None:
             self._fh.close()
-            self._fh = None
