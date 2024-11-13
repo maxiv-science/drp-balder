@@ -9,7 +9,7 @@ Run on recorded data using one of the following commands:
 
     LOG_LEVEL="DEBUG" dranspose replay -w "src.worker:BalderWorker" -r "src.reducer:BalderReducer" -s "src.hdf5_sources:XESSource" -p params.json
 
-    LOG_LEVEL="INFO" dranspose replay -w "src.worker:BalderWorker" -r "src.reducer:BalderReducer" -f data/xes_streaming_receivereigerxes-ingester-d05f85ac-e444-44e9-8d96-b40d8566b6a6.cbors -p params.json
+    LOG_LEVEL="INFO" dranspose replay -w "src.worker:BalderWorker" -r "src.reducer:BalderReducer" -f data/dump*.cbors -p params.json
 
 You can use the [HsdsViewer](https://gitlab.maxiv.lu.se/scisw/live-viewer/-/tree/master/hsdsviewer?ref_type=heads) to look at the live results:
 

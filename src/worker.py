@@ -1,4 +1,5 @@
 import logging
+import os
 import pickle
 from dataclasses import dataclass
 from typing import Optional, Any
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Start:
     filename: str
+    sardana_filename: str
     motor_name: str
 
 
@@ -48,10 +50,10 @@ class BalderWorker:
         self.xes_stream = StreamName("eigerxes")
         self.sardana_stream = StreamName("sardana")
         self.pcap_stream = StreamName("pcap")
-        self.pcap = PositioncapParser()
         self.coeffs: tuple[float, ...] | None = None
         self.pcap = PositioncapParser()
         self.X: np.ndarray[Any, np.dtype[Any]] | None = None
+        self.motor = "unknown"
 
     @staticmethod
     def describe_parameters() -> list[ParameterBase]:
@@ -110,21 +112,26 @@ class BalderWorker:
         #         crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
         #         ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
         #         logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
+        sardana_filename = ""
+        motor_pos = 0
         if self.sardana_stream in event.streams:
             res = parse_sardana(event.streams[self.sardana_stream])
             logger.debug(f"{res=} found")
             if isinstance(res, SardanaDataDescription):
+                logger.info(f"{res=}")
+                try:
+                    fnames = [f for f in res.scanfile if "h5" in f]
+                    sardana_filename = os.path.join(res.scandir, fnames[0])
+                    logger.debug(f"{sardana_filename=}")
+                except Exception as e:
+                    logger.warning(f"Could not determine Sardana scanfile: {e}")
                 if hasattr(res, "ref_moveables"):
                     if len(res.ref_moveables) > 0:
                         self.motor = res.ref_moveables[0]
-                        # self.motor = res.title.split(" ")[1]
                         logger.debug(f"{self.motor=}")
             elif isinstance(res, SardanaRecordData):
                 motor_pos = getattr(res, self.motor)
                 logger.debug(f"{motor_pos=}")
-        else:
-            self.motor = "unknown"
-            motor_pos = 0
 
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
@@ -132,7 +139,8 @@ class BalderWorker:
             logger.debug(f"message parsed {acq}")
             if isinstance(acq, Stream1Start):
                 logger.info("start message %s", acq)
-                return Start(acq.filename, self.motor)
+                return Start(acq.filename, sardana_filename, self.motor)
+
             elif isinstance(acq, Stream1Data):
                 logger.info("image message %s", acq)
                 if "bslz4" in acq.compression:
