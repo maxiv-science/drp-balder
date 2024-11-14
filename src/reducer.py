@@ -54,9 +54,8 @@ class BalderReducer:
         self._proj_corr_dset: h5py.Dataset | None = None
         self._roi_dset: h5py.Dataset | None = None
         self._pos_dset: h5py.Dataset | None = None
-        self.dir = "/entry/instrument/eiger_xes"
+        self.dir = "/entry/instrument/eiger_xes_processed"
         self.last_roi_len = 0
-        # self.lock = Lock()
 
     def process_result(
         self, result: ResultData, parameters: dict[ParameterName, WorkParameter]
@@ -78,10 +77,9 @@ class BalderReducer:
                     logger.warning(
                         f"Could not write to file {dest_filename}. Will work in live mode only."
                     )
-                if result.payload.sardana_filename != "":
-                    self._fh["/raw_data"] = h5py.ExternalLink(
-                        result.payload.sardana_filename, "/"
-                    )
+                # self._fh["/entry/instrument/eiger_xes"] = h5py.ExternalLink(
+                #     result.payload.filename.replace("eiger_xes","sardana"), "/entry/instrument/eiger_xes"
+                # )
                 limits = (
                     parameters[ParameterName("ROI_from")].value,
                     parameters[ParameterName("ROI_to")].value,
@@ -93,6 +91,7 @@ class BalderReducer:
                     parameters[ParameterName("a2")].value,
                 )
                 self._fh.create_dataset(f"{self.dir}/coefficients", data=coeffs)
+
         elif isinstance(result.payload, Result):
             logger.debug("got result %s", result.payload)
             if self._proj_dset is None and self._fh is not None:
