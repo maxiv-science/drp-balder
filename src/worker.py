@@ -53,7 +53,7 @@ class BalderWorker:
         self.coeffs: tuple[float, ...] | None = None
         self.pcap = PositioncapParser()
         self.X: np.ndarray[Any, np.dtype[Any]] | None = None
-        self.motor = "unknown"
+        self.motor = "scan_step"
 
     @staticmethod
     def describe_parameters() -> list[ParameterBase]:
@@ -130,9 +130,11 @@ class BalderWorker:
                         self.motor = res.ref_moveables[0]
                         logger.debug(f"{self.motor=}")
             elif isinstance(res, SardanaRecordData):
-                motor_pos = getattr(res, self.motor)
+                if self.motor == "scan_step":
+                    motor_pos = getattr(res, "point_nb")
+                else:
+                    motor_pos = getattr(res, self.motor)
                 logger.debug(f"{motor_pos=}")
-
         if self.xes_stream in event.streams:
             logger.debug(f"{self.xes_stream} found")
             acq = parse_stins(event.streams[self.xes_stream])
