@@ -107,7 +107,9 @@ class BalderReducer:
                     maxshape=(None, size),
                     dtype=dtype,
                 )
-                self._fh[f"{self.dir}/data"] = h5py.SoftLink(f"{self.dir}/proj_corrected")
+                self._fh[f"{self.dir}/data"] = h5py.SoftLink(
+                    f"{self.dir}/proj_corrected"
+                )
                 self._roi_dset = self._fh.create_dataset(
                     f"{self.dir}/ROI_sum", (0,), maxshape=(None,), dtype=dtype
                 )
