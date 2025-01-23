@@ -10,6 +10,8 @@ from bitshuffle import compress_lz4
 
 logger = logging.getLogger(__name__)
 
+MAX_EVENTS = 100
+
 
 class XESSource:  # Only works with old xes-receiver files
     def __init__(self) -> None:
@@ -67,6 +69,8 @@ class XESSource:  # Only works with old xes-receiver files
             yield img
             frameno += 1
             # logger.debug(f"Sending {img=}")
+            if frameno > MAX_EVENTS:
+                break
 
         stins_end = (
             Stream1End(htype="series_end", msg_number=next(msg_number))
