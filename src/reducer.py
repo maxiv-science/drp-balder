@@ -1,10 +1,8 @@
 import logging
-from copy import copy
-from threading import Lock
+
 from typing import Any
 
 import h5py
-import h5pyd
 import os
 import numpy as np
 
@@ -62,7 +60,6 @@ class BalderReducer:
     ) -> None:
         if isinstance(result.payload, Start):
             logger.info("start message")
-            self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
             self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
             if self._fh is None:
                 name, ext = os.path.splitext(result.payload.filename)
@@ -135,11 +132,11 @@ class BalderReducer:
             # publish results and live preview
             if result.payload.preview is not None:
                 self.pub_xes["last_frame"] = result.payload.preview
-                self.roi_sum["data"] = np.array(self._roi_dset)
-                self.roi_sum["motor"] = np.array(self._pos_dset)
-                self.proj_corrected["frame"] = np.array(self._proj_corr_dset)
-                self.proj_corrected["motor"] = np.array(self._pos_dset)
-                self.pub_xes["last_proj_corr"] = result.payload.projected_corr
+            self.roi_sum["data"] = np.array(self._roi_dset)
+            self.roi_sum["motor"] = np.array(self._pos_dset)
+            self.proj_corrected["frame"] = np.array(self._proj_corr_dset)
+            self.proj_corrected["motor"] = np.array(self._pos_dset)
+            self.pub_xes["last_proj_corr"] = result.payload.projected_corr
 
             # self.last_roi_len = min(self.last_roi_len, result.event_number-1)
 
