@@ -22,28 +22,28 @@ class BalderReducer:
         self.roi_sum: dict[str, Any] = {
             "data_attrs": {"long_name": "photons"},
             # "data": np.ones((42)),
-            "motor_attrs": {"long_name": "motor"},
+            "motor_attrs": {"long_name": "movable"},
             # "motor": np.linspace(0,1,42),
         }
         self.proj_corrected: dict[str, Any] = {
-            "motor_attrs": {"long_name": "motor"},
+            "motor_attrs": {"long_name": "movable"},
             #    "frame": np.ones((42, 42)),
             #    "motor": np.linspace(0, 1, 42),
         }
         self.pub_xes: dict[str, Any] = {
+            "roi_sum": self.roi_sum,
             "roi_sum_attrs": {
                 "NX_class": "NXdata",
                 "axes": ["motor"],
                 "signal": "data",
             },
-            "roi_sum": self.roi_sum,
+            "proj_corrected": self.proj_corrected,
             "proj_corrected_attrs": {
                 "NX_class": "NXdata",
-                "axes": ["motor", "."],
+                "axes": [".", "motor"],
                 "signal": "frame",
                 "interpretation": "image",
             },
-            "proj_corrected": self.proj_corrected,
         }
         self.publish = {"xes": self.pub_xes}
         # self.projections: list[Any] = []
@@ -61,6 +61,9 @@ class BalderReducer:
         if isinstance(result.payload, Start):
             logger.info("start message")
             self.roi_sum["motor_attrs"] = {"long_name": result.payload.motor_name}
+            self.proj_corrected["motor_attrs"] = {
+                "long_name": result.payload.motor_name
+            }
             if self._fh is None:
                 name, ext = os.path.splitext(result.payload.filename)
                 dest_filename = f"{name}_processed{ext}"
