@@ -10,6 +10,7 @@ RUN micromamba list -n base
 FROM harbor.maxiv.lu.se/dockerhub/library/ubuntu:latest AS runtime
 
 COPY --from=build /opt/conda /opt/conda
+
 ENV PATH /opt/conda/bin:$PATH
 ENV HDF5_PLUGIN_PATH /opt/conda/lib/hdf5/plugin
 
@@ -29,6 +30,5 @@ COPY <<EOF /etc/build_git_meta.json
 "repository_url": "${CI_PROJECT_URL}"
 }
 EOF
-
 
 CMD ["dranspose"]
