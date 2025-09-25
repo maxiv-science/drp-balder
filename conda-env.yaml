@@ -9,8 +9,6 @@ dependencies:
   - h5py
   - scipy
   - h5pyd
-  # testing dependencies
-  - pytest
   # dranspose dependencies
   - pyzmq
   - redis-py
