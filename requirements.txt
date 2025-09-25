@@ -2,4 +2,4 @@ dranspose == 0.1.1
 h5py
 numpy
 scipy
-h5pyd == 0.21.0
+h5pyd == 0.18.0
