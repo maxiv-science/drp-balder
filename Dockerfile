@@ -10,7 +10,7 @@ RUN micromamba list -n base
 FROM harbor.maxiv.lu.se/dockerhub/library/ubuntu:latest AS runtime
 
 COPY --from=build /opt/conda /opt/conda
-
+ENV PATH /opt/conda/bin:$PATH
 ENV HDF5_PLUGIN_PATH /opt/conda/lib/hdf5/plugin
 
 ARG CI_COMMIT_SHA=0000
