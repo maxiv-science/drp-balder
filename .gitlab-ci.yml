@@ -18,7 +18,7 @@ test_docker_image:
     - kubernetes
   image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
   script:
-    - ls /opt/conda
+    - ls /opt/conda/bin
     - python -m pip install pytest pytest-cov
     - pytest --cov=src --cov-branch --cov-report term-missing --cov-report html --log-cli-level=INFO
   coverage: '/^TOTAL.+?(\d+\%)$/'
