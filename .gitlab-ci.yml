@@ -19,7 +19,6 @@ test_docker_image:
   image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
   script:
     - ls /opt/conda/bin | grep python
-    - ls /venv/bin | grep python
     - python -m pip install pytest pytest-cov
     - pytest --cov=src --cov-branch --cov-report term-missing --cov-report html --log-cli-level=INFO
   coverage: '/^TOTAL.+?(\d+\%)$/'
