@@ -11,6 +11,8 @@ variables:
 
 
 test_docker_image:
+  variables:
+    CI_DEBUG_TRACE: "true"
   stage: test
   tags:
     - kubernetes
