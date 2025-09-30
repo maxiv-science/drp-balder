@@ -11,15 +11,11 @@ variables:
 
 
 test_docker_image:
-  variables:
-    CI_DEBUG_TRACE: "true"
   stage: test
   tags:
     - kubernetes
   image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
   script:
-    - ls /opt/conda/bin | grep python
-    - echo $PATH
     - python -m pip install pytest pytest-cov
     - pytest --cov=src --cov-branch --cov-report term-missing --cov-report html --log-cli-level=INFO
   coverage: '/^TOTAL.+?(\d+\%)$/'
