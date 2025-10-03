@@ -102,29 +102,12 @@ class BalderWorker:
         *args: Any,
         **kwargs: Any,
     ) -> Start | Result | None:
-        # if self.pcap_stream in event.streams:
-        #     res = self.pcap.parse(event.streams[self.pcap_stream])
-        #     if isinstance(res, PositionCapStart):
-        #         self.arm_time = res.arm_time
-        #     elif isinstance(res, PositionCapValues):
-        #         triggernumber = res.fields["COUNTER2.OUT.Max"].value
-        #         ene_raw = res.fields["INENC2.VAL.Mean"].value
-        #         crystalconstant = 3.1346797943115234 # FIXME this should be read from the tango device
-        #         ene = 12398.419/(2*crystalconstant*sin(radians(ene_raw/874666)))
-        #         logger.debug(f"{triggernumber=} {ene_raw=} {ene=}")
-        # sardana_filename = ""
-        motor_pos = 0
+        motor_pos = event.event_number
         if self.sardana_stream in event.streams:
             res = parse_sardana(event.streams[self.sardana_stream])
             logger.debug(f"{res=} found")
             if isinstance(res, SardanaDataDescription):
                 logger.info(f"{res=}")
-                # try:
-                #     fnames = [f for f in res.scanfile if "h5" in f]
-                #     sardana_filename = os.path.join(res.scandir, fnames[0])
-                #     logger.debug(f"{sardana_filename=}")
-                # except Exception as e:
-                #     logger.warning(f"Could not determine Sardana scanfile: {e}")
                 if hasattr(res, "ref_moveables"):
                     if len(res.ref_moveables) > 0:
                         self.motor = res.ref_moveables[0]
