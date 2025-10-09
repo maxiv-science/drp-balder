@@ -1,0 +1,1 @@
+[{"name": "ROI_from", "data": "446"}, {"name": "ROI_to", "data": "508"}, {"name": "mask_greater_than", "data": "1000"}, {"name": "a0", "data": "478.10416032688295"}, {"name": "a1", "data": "0.015711803618301115"}, {"name": "a2", "data": "5.894903882262011e-06"}, {"name": "BandROI", "data": "{\"begin\": [454, 21], \"end\": [510, 965], \"width\": 0.5}"}]
