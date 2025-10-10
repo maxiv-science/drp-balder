@@ -25,6 +25,9 @@ class BalderReducer:
         self.publish_rlock = self.rw_lock.gen_rlock()
         self.publish_wlock = self.rw_lock.gen_wlock()
 
+        self.last_event = -1
+        self.last_processed = -1
+        self.new_band_roi = False
         self.band_roi = {}
         self.roi_sum: dict[str, Any] = {
             "data_attrs": {"long_name": "photons"},
@@ -97,7 +100,10 @@ class BalderReducer:
         self, result: ResultData, parameters: dict[ParameterName, WorkParameter]
     ) -> None:
         try:
-            self.band_roi = json.loads(parameters[ParameterName("BandROI")].value)
+            band_roi = json.loads(parameters[ParameterName("BandROI")].value)
+            if band_roi != self.band_roi:
+                self.band_roi = band_roi
+                self.new_band_roi = True
         except KeyError:
             logger.warning("Could not decode BandROI")
         if isinstance(result.payload, Start):
@@ -135,6 +141,7 @@ class BalderReducer:
                 )
 
         elif isinstance(result.payload, Result):
+            self.last_event = result.event_number
             logger.debug("got result %s", result.payload)
             if self._proj_dset is None and self._fh is not None:
                 size = result.payload.projected.shape[0]
@@ -187,6 +194,11 @@ class BalderReducer:
     def timer(self):
         start = time.time()
         logger.debug(f"{self.band_roi=}")
+        if (not self.new_band_roi) and self.last_event == self.last_processed:
+            logger.debug("No new ROI or new events, nothing to process")
+            return 1
+        self.new_band_roi = False
+        self.last_processed = self.last_event
         try:
             x1, y1 = self.band_roi["begin"]
             x2, y2 = self.band_roi["end"]
@@ -198,12 +210,12 @@ class BalderReducer:
             logger.warning(
                 "Timer: Could not get band ROI info %s, %s", str(self.band_roi), e
             )
-            return 0.1
+            return 1
         if (self.proj_corrected["frame"] is None) or (
             self.proj_corrected["motor"] is None
         ):
             logger.warning("Timer: No image to analyse")
-            return 0.1
+            return 1
         with self.publish_rlock:
             yRange = self.proj_corrected["motor"][0], self.proj_corrected["motor"][-1]
             dataCut = np.array(self.proj_corrected["frame"], dtype=np.float32)
