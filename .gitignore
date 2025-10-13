@@ -4,3 +4,4 @@ data/eiger-5729_data_000003_processed.h5
 *.cbors
 .coverage
 .vscode/
+*.code-workspace

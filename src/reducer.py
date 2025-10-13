@@ -29,6 +29,7 @@ class BalderReducer:
         self.last_processed = -1
         self.new_band_roi = False
         self.band_roi = {}
+        # FIXME make last_frame nxData and fix proj_corr in slix view
         self.roi_sum: dict[str, Any] = {
             "data_attrs": {"long_name": "photons"},
             "data": None,
@@ -49,7 +50,7 @@ class BalderReducer:
         self.band_bottom: dict[str, Any] = {
             "data_attrs": {"long_name": "photons"},
             "data": None,
-            "motor_attrs": {"long_name": "meridional_pixel"},
+            "motor_attrs": {"long_name": "movable"},
             "motor": None,
         }
         self.pub_xes: dict[str, Any] = {
@@ -111,6 +112,7 @@ class BalderReducer:
             self.roi_sum["motor_attrs"]["long_name"] = result.payload.motor_name
             self.proj_corrected["motor_attrs"]["long_name"] = result.payload.motor_name
             self.band_left["motor_attrs"]["long_name"] = result.payload.motor_name
+            self.band_bottom["motor_attrs"]["long_name"] = result.payload.motor_name
             if self._fh is None:
                 name, ext = os.path.splitext(result.payload.filename)
                 dest_filename = f"{name}_processed{ext}"

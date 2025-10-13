@@ -41,15 +41,19 @@ def test_livequery() -> None:
     logging.info("file %s", list(f.keys()))
     logging.info("xes %s", list(f["xes"].keys()))
     assert list(f.keys()) == ["xes"]
-    assert list(f["xes"].keys()) == [
+    assert set(f["xes"].keys()) == {
         "roi_sum",
         "proj_corrected",
         "last_proj_corr",
         "last_frame",
-    ]
+        "band_theta",
+        "band_2theta",
+    }
     assert f["xes/roi_sum/data"].shape == (41,)
     assert f["xes/proj_corrected/frame"].shape == (41, 1030)
     assert f["xes/roi_sum/data"][17] == 102
+    assert f["xes/band_2theta/data"][417] == 7
+    assert f["xes/band_theta/data"][1] == 34
     stop_event.set()
 
     thread.join()
