@@ -1,7 +1,7 @@
 name: pipeline
 channels:
   - conda-forge
-  - maxiv
+  #- maxiv
 dependencies:
   - python=3.11
   - pip
@@ -9,4 +9,5 @@ dependencies:
   - h5py
   - scipy
   - h5pyd
+  - readerwriterlock
   - dranspose=0.1.1
