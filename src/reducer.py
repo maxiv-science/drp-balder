@@ -85,10 +85,10 @@ class BalderReducer:
         self._fh: h5py.File | None = None
         self._proj_dset: h5py.Dataset | None = None
         self._proj_corr_dset: h5py.Dataset | None = None
-        self._roi_dset: h5py.Dataset | None = None
+        # self._roi_dset: h5py.Dataset | None = None
         self._pos_dset: h5py.Dataset | None = None
         self.dir = "/entry/instrument/eiger_xes_processed"
-        self.last_roi_len = 0
+        self.limits = (0, 0)
 
     @staticmethod
     def describe_parameters() -> list[ParameterBase]:
@@ -107,6 +107,10 @@ class BalderReducer:
                 self.new_band_roi = True
         except KeyError:
             logger.warning("Could not decode BandROI")
+        self.limits = (
+            parameters[ParameterName("ROI_from")].value,
+            parameters[ParameterName("ROI_to")].value,
+        )
         if isinstance(result.payload, Start):
             logger.info("start message")
             self.roi_sum["motor_attrs"]["long_name"] = result.payload.motor_name
@@ -126,11 +130,8 @@ class BalderReducer:
                     logger.warning(
                         f"Could not write to file {dest_filename}. Will work in live mode only."
                     )
-                limits = (
-                    parameters[ParameterName("ROI_from")].value,
-                    parameters[ParameterName("ROI_to")].value,
-                )
-                self._fh.create_dataset(f"{self.dir}/ROI_limits", data=limits)
+
+                self._fh.create_dataset(f"{self.dir}/ROI_limits", data=self.limits)
                 coeffs = (
                     parameters[ParameterName("a0")].value,
                     parameters[ParameterName("a1")].value,
@@ -161,15 +162,15 @@ class BalderReducer:
                 self._fh[f"{self.dir}/data"] = h5py.SoftLink(
                     f"{self.dir}/proj_corrected"
                 )
-                self._roi_dset = self._fh.create_dataset(
-                    f"{self.dir}/ROI_sum", (0,), maxshape=(None,), dtype=dtype
-                )
+                # self._roi_dset = self._fh.create_dataset(
+                #     f"{self.dir}/ROI_sum", (0,), maxshape=(None,), dtype=dtype
+                # )
                 self._pos_dset = self._fh.create_dataset(
                     f"{self.dir}/motor_pos", (0,), maxshape=(None,), dtype="float"
                 )
             assert self._proj_dset is not None
             assert self._proj_corr_dset is not None
-            assert self._roi_dset is not None
+            # assert self._roi_dset is not None
             assert self._pos_dset is not None
             oldsize = self._proj_dset.shape[0]
             newsize = max(result.event_number, oldsize)
@@ -179,16 +180,14 @@ class BalderReducer:
             self._proj_corr_dset[
                 result.event_number - 1
             ] = result.payload.projected_corr
-            self._roi_dset.resize(newsize, axis=0)
-            self._roi_dset[result.event_number - 1] = result.payload.roi_sum
+            # self._roi_dset.resize(newsize, axis=0)
+            # self._roi_dset[result.event_number - 1] =
             self._pos_dset.resize(newsize, axis=0)
             self._pos_dset[result.event_number - 1] = result.payload.motor_pos
             with self.publish_wlock:
                 # publish results and live preview
                 if result.payload.preview is not None:
                     self.pub_xes["last_frame"] = result.payload.preview
-                self.roi_sum["data"] = np.array(self._roi_dset)
-                self.roi_sum["motor"] = np.array(self._pos_dset)
                 self.proj_corrected["frame"] = np.array(self._proj_corr_dset)
                 self.proj_corrected["motor"] = np.array(self._pos_dset)
                 self.pub_xes["last_proj_corr"] = result.payload.projected_corr
@@ -250,7 +249,7 @@ class BalderReducer:
 
         # cutting of the incomplete ends:
         gd = (x_bottom - w / 2 > data_y[0]) & (x_bottom + w / 2 < data_y[-1])
-        proj_bottom[~gd] = np.nan
+        proj_bottom = proj_bottom[gd]
 
         with self.publish_wlock:
             logger.info("Timer: Publish projections")
@@ -258,6 +257,9 @@ class BalderReducer:
             self.band_left["motor"] = data_y
             self.band_bottom["data"] = proj_bottom
             self.band_bottom["motor"] = x_bottom
+            a, b = self.limits
+            self.roi_sum["data"] = np.sum(self.proj_corrected["frame"][a:b], axis=0)
+            self.roi_sum["motor"] = self.proj_corrected["motor"]
             # self.ds_dt = np.dtype(
             #     {"names": col_names, "formats": [(float)] * len(col_names)}
             # )
@@ -272,4 +274,12 @@ class BalderReducer:
     ) -> None:
         logger.info("FINISH THEM!!!")
         if self._fh is not None:
+            # add datasets for the latest ROI sums
+            self._fh.create_dataset(f"{self.dir}/ROI_sum", data=self.roi_sum["data"])
+            self._fh.create_dataset(
+                f"{self.dir}/band_theta", data=self.band_left["data"]
+            )
+            self._fh.create_dataset(
+                f"{self.dir}/band_2theta", data=self.band_bottom["data"]
+            )
             self._fh.close()
