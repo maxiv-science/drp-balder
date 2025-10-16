@@ -272,6 +272,8 @@ class BalderReducer:
     def finish(
         self, parameters: dict[ParameterName, WorkParameter] | None = None
     ) -> None:
+        # run timer one last time to get the latest projections
+        self.timer()
         logger.info("FINISH THEM!!!")
         if self._fh is not None:
             # add datasets for the latest ROI plots
