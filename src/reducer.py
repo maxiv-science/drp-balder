@@ -258,7 +258,7 @@ class BalderReducer:
             self.band_bottom["data"] = proj_bottom
             self.band_bottom["motor"] = x_bottom
             a, b = self.limits
-            self.roi_sum["data"] = np.sum(self.proj_corrected["frame"][a:b], axis=0)
+            self.roi_sum["data"] = np.sum(self.proj_corrected["frame"][:, a:b], axis=1)
             self.roi_sum["motor"] = self.proj_corrected["motor"]
             # self.ds_dt = np.dtype(
             #     {"names": col_names, "formats": [(float)] * len(col_names)}
@@ -274,7 +274,7 @@ class BalderReducer:
     ) -> None:
         logger.info("FINISH THEM!!!")
         if self._fh is not None:
-            # add datasets for the latest ROI sums
+            # add datasets for the latest ROI plots
             self._fh.create_dataset(f"{self.dir}/ROI_sum", data=self.roi_sum["data"])
             self._fh.create_dataset(
                 f"{self.dir}/band_theta", data=self.band_left["data"]
