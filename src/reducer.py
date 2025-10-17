@@ -279,20 +279,25 @@ class BalderReducer:
         logger.info("FINISH THEM!!!")
         if self._fh is not None:
             # add datasets for the latest ROI plots
-            self._fh.create_dataset(f"{self.dir}/ROI_sum", data=self.roi_sum["data"])
-            self._fh.create_dataset(
-                f"{self.dir}/ROI_sum_axis", data=self.roi_sum["motor"]
-            )
-            self._fh.create_dataset(
-                f"{self.dir}/band_theta", data=self.band_left["data"]
-            )
-            self._fh.create_dataset(
-                f"{self.dir}/band_theta_axis", data=self.band_left["motor"]
-            )
-            self._fh.create_dataset(
-                f"{self.dir}/band_2theta", data=self.band_bottom["data"]
-            )
-            self._fh.create_dataset(
-                f"{self.dir}/band_2theta_axis", data=self.band_bottom["motor"]
-            )
+
+            rois = {
+                "ROI_sum": self.roi_sum,
+                "band_theta": self.band_left,
+                "band_2theta": self.band_bottom,
+            }
+
+            for name, data in rois.items():
+                # create NXdata group
+                nxdata_path = f"{self.dir}/{name}"
+                nx = self._fh.require_group(nxdata_path)
+                nx.attrs["NX_class"] = "NXdata"
+                sig_name = f"{name}_data"
+                axis_name = f"{name}_axis"
+                sig_path = f"{nxdata_path}/{sig_name}"
+                axis_path = f"{nxdata_path}/{axis_name}"
+                self._fh.create_dataset(sig_path, data=data["data"])
+                self._fh.create_dataset(axis_path, data=data["motor"])
+                nx.attrs["signal"] = sig_name
+                nx.attrs["axes"] = [axis_name]
+
             self._fh.close()
