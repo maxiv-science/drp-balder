@@ -250,6 +250,7 @@ class BalderReducer:
         # cutting of the incomplete ends:
         gd = (x_bottom - w / 2 > data_y[0]) & (x_bottom + w / 2 < data_y[-1])
         proj_bottom = proj_bottom[gd]
+        x_bottom = x_bottom[gd]
 
         with self.publish_wlock:
             logger.info("Timer: Publish projections")
