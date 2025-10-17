@@ -123,6 +123,7 @@ class BalderReducer:
                 try:
                     os.makedirs(os.path.dirname(dest_filename), exist_ok=True)
                     self._fh = h5py.File(dest_filename, "w")
+                    logger.info("saving data to %s", dest_filename)
                 except Exception:
                     self._fh = h5py.File(
                         dest_filename, "w", driver="core", backing_store=False
@@ -280,9 +281,18 @@ class BalderReducer:
             # add datasets for the latest ROI plots
             self._fh.create_dataset(f"{self.dir}/ROI_sum", data=self.roi_sum["data"])
             self._fh.create_dataset(
+                f"{self.dir}/ROI_sum_axis", data=self.roi_sum["motor"]
+            )
+            self._fh.create_dataset(
                 f"{self.dir}/band_theta", data=self.band_left["data"]
             )
             self._fh.create_dataset(
+                f"{self.dir}/band_theta_axis", data=self.band_left["motor"]
+            )
+            self._fh.create_dataset(
                 f"{self.dir}/band_2theta", data=self.band_bottom["data"]
+            )
+            self._fh.create_dataset(
+                f"{self.dir}/band_2theta_axis", data=self.band_bottom["motor"]
             )
             self._fh.close()
