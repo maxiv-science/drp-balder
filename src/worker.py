@@ -40,7 +40,6 @@ class Start:
 class Result:
     projected: np.ndarray[Any, np.dtype[Any]]
     projected_corr: np.ndarray[Any, np.dtype[Any]]
-    roi_sum: int
     motor_pos: float
     preview: Optional[list[int]] = None
 
@@ -158,14 +157,11 @@ class BalderWorker:
                 if self.X is not None:
                     proj_corrected, _ = np.histogram(self.X, weights=w, bins=bins)
 
-                    a: int = parameters[ParameterName("ROI_from")].value  # type: ignore[assignment]
-                    b: int = parameters[ParameterName("ROI_to")].value  # type: ignore[assignment]
-                    roi_sum = np.sum(proj_corrected[a:b])
                     if tick:
                         logger.info("Tick received, sending live preview...")
                         return Result(
-                            projected, proj_corrected, roi_sum, motor_pos, masked_img[:]
+                            projected, proj_corrected, motor_pos, masked_img[:]
                         )
                     else:
-                        return Result(projected, proj_corrected, roi_sum, motor_pos)
+                        return Result(projected, proj_corrected, motor_pos)
         return None
