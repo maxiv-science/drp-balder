@@ -12,7 +12,7 @@ def test_replay_h5() -> None:
         "src.reducer:BalderReducer",
         None,
         "src.hdf5_sources:XESSource",
-        "params.json",
+        "params_hdf5_sources.json",
     )
 
 
