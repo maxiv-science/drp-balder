@@ -10,4 +10,4 @@ dependencies:
   - scipy
   - h5pyd
   - readerwriterlock
-  - dranspose=0.1.1
+  - dranspose=0.2.0

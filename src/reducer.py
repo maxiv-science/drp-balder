@@ -88,7 +88,6 @@ class BalderReducer:
         # self._roi_dset: h5py.Dataset | None = None
         self._pos_dset: h5py.Dataset | None = None
         self.dir = "/entry/instrument/eiger_xes_processed"
-        self.limits = (0, 0)
 
     @staticmethod
     def describe_parameters() -> list[ParameterBase]:
@@ -100,14 +99,7 @@ class BalderReducer:
     def process_result(
         self, result: ResultData, parameters: dict[ParameterName, WorkParameter]
     ) -> None:
-        try:
-            band_roi = json.loads(parameters[ParameterName("BandROI")].value)
-            if band_roi != self.band_roi:
-                self.band_roi = band_roi
-                self.new_band_roi = True
-        except KeyError:
-            logger.warning("Could not decode BandROI")
-        self.limits = (
+        limits = (
             parameters[ParameterName("ROI_from")].value,
             parameters[ParameterName("ROI_to")].value,
         )
@@ -132,7 +124,7 @@ class BalderReducer:
                         f"Could not write to file {dest_filename}. Will work in live mode only."
                     )
 
-                self._fh.create_dataset(f"{self.dir}/ROI_limits", data=self.limits)
+                self._fh.create_dataset(f"{self.dir}/ROI_limits", data=limits)
                 coeffs = (
                     parameters[ParameterName("a0")].value,
                     parameters[ParameterName("a1")].value,
@@ -193,7 +185,19 @@ class BalderReducer:
                 self.proj_corrected["motor"] = np.array(self._pos_dset)
                 self.pub_xes["last_proj_corr"] = result.payload.projected_corr
 
-    def timer(self):
+    def timer(self, parameters: dict[ParameterName, WorkParameter]):
+        try:
+            band_roi = json.loads(parameters[ParameterName("BandROI")].value)
+            if band_roi != self.band_roi:
+                self.band_roi = band_roi
+                self.new_band_roi = True
+        except KeyError:
+            logger.warning("Could not decode BandROI")
+        a, b = (
+            parameters[ParameterName("ROI_from")].value,
+            parameters[ParameterName("ROI_to")].value,
+        )
+
         start = time.time()
         logger.debug(f"{self.band_roi=}")
         if (not self.new_band_roi) and self.last_event == self.last_processed:
@@ -259,7 +263,6 @@ class BalderReducer:
             self.band_left["motor"] = data_y
             self.band_bottom["data"] = proj_bottom
             self.band_bottom["motor"] = x_bottom
-            a, b = self.limits
             self.roi_sum["data"] = np.sum(self.proj_corrected["frame"][:, a:b], axis=1)
             self.roi_sum["motor"] = self.proj_corrected["motor"]
             # self.ds_dt = np.dtype(
