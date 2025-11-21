@@ -12,11 +12,31 @@ from dranspose.event import ResultData
 from dranspose.protocol import ParameterName, WorkParameter
 from dranspose.parameters import StrParameter, ParameterBase
 from readerwriterlock.rwlock import RWLockFair
+from skimage.transform import warp, resize
 
 from .worker import Start, Result
 
 
 logger = logging.getLogger(__name__)
+
+
+def shear_image(image, theta, k, b, direction=1):
+    def line(xs, ys):
+        try:
+            k = (ys[1] - ys[0]) / (xs[1] - xs[0])
+        except ZeroDivisionError:
+            return np.inf, 0.0
+        b = ys[1] - k * xs[1]
+        return k, b
+
+    def shear(xy):
+        theta0 = (theta[0] + theta[-1]) * 0.5
+        ymin, ymax = xy[:, 1].min(), xy[:, 1].max()
+        ky, by = line((ymin, ymax), (theta[0], theta[-1]))
+        xy[:, 0] += (ky * xy[:, 1] + by - theta0) / k * direction
+        return xy
+
+    return warp(image, shear)
 
 
 class BalderReducer:
@@ -238,18 +258,29 @@ class BalderReducer:
         vm = v - k * u - b - w / 2
         vp = v - k * u - b + w / 2
         if useFractionalPixels and (dt > 0):
-            dataCut[vm > dt] = 0
-            dataCut[vp < -dt] = 0
-            vmWherePartial = (vm > 0) & (vm < dt)
-            dataCut[vmWherePartial] *= vm[vmWherePartial] / dt
-            vpWherePartial = (vp > -dt) & (vp < 0)
-            dataCut[vpWherePartial] *= -vp[vpWherePartial] / dt
+            # dataCut[vm > dt] = 0
+            # dataCut[vp < -dt] = 0
+            # vmWherePartial = (vm > 0) & (vm < dt)
+            # dataCut[vmWherePartial] *= vm[vmWherePartial] / dt
+            # vpWherePartial = (vp > -dt) & (vp < 0)
+            # dataCut[vpWherePartial] *= -vp[vpWherePartial] / dt
+            xes2Ds = shear_image(dataCut, data_y, k, b)
+            n = dataCut.shape[1]
+            xes2Dsd = resize(xes2Ds, (n, n), order=1)
+            xes2Dd = shear_image(xes2Dsd, data_y, k, b, direction=-1)
+            denseTheta = np.linspace(data_y[0], data_y[-1], n)
+            uD, vD = np.meshgrid(np.arange(n), denseTheta)
+            yD = k * uD + b
+            xes2Dd[vD > yD + w / 2] = 0  # above
+            xes2Dd[vD < yD - w / 2] = 0  # below
+            proj_bottom = xes2Dd.sum(axis=0)
+            # preserve total counts in the band:
+            proj_bottom *= dataCut.sum() / proj_bottom.sum()
         else:
             dataCut[vm > 0] = 0
             dataCut[vp < 0] = 0
+            proj_bottom = dataCut.sum(axis=0)
         proj_left = dataCut.sum(axis=1)
-
-        proj_bottom = dataCut.sum(axis=0)
         x_bottom = k * data_x + b
 
         # cutting of the incomplete ends:
