@@ -213,11 +213,10 @@ class BalderReducer:
                 self.new_band_roi = True
         except KeyError:
             logger.warning("Could not decode BandROI")
-        a, b = (
+        limits = (
             parameters[ParameterName("ROI_from")].value,
             parameters[ParameterName("ROI_to")].value,
         )
-
         start = time.time()
         logger.debug(f"{self.band_roi=}")
         if (not self.new_band_roi) and self.last_event == self.last_processed:
@@ -258,12 +257,6 @@ class BalderReducer:
         vm = v - k * u - b - w / 2
         vp = v - k * u - b + w / 2
         if useFractionalPixels and (dt > 0):
-            # dataCut[vm > dt] = 0
-            # dataCut[vp < -dt] = 0
-            # vmWherePartial = (vm > 0) & (vm < dt)
-            # dataCut[vmWherePartial] *= vm[vmWherePartial] / dt
-            # vpWherePartial = (vp > -dt) & (vp < 0)
-            # dataCut[vpWherePartial] *= -vp[vpWherePartial] / dt
             xes2Ds = shear_image(dataCut, data_y, k, b)
             n = dataCut.shape[1]
             xes2Dsd = resize(xes2Ds, (n, n), order=1)
@@ -294,7 +287,9 @@ class BalderReducer:
             self.band_left["motor"] = data_y
             self.band_bottom["data"] = proj_bottom
             self.band_bottom["motor"] = x_bottom
-            self.roi_sum["data"] = np.sum(self.proj_corrected["frame"][:, a:b], axis=1)
+            self.roi_sum["data"] = np.sum(
+                self.proj_corrected["frame"][:, slice(*limits)], axis=1
+            )
             self.roi_sum["motor"] = self.proj_corrected["motor"]
             # self.ds_dt = np.dtype(
             #     {"names": col_names, "formats": [(float)] * len(col_names)}
@@ -309,7 +304,7 @@ class BalderReducer:
         self, parameters: dict[ParameterName, WorkParameter] | None = None
     ) -> None:
         # run timer one last time to get the latest projections
-        self.timer()
+        self.timer(parameters)
         logger.info("FINISH THEM!!!")
         if self._fh is not None:
             # add datasets for the latest ROI plots
