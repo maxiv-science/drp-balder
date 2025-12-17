@@ -42,16 +42,17 @@ def shear_image(image, theta, k, b, direction=1):
 class BalderReducer:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.rw_lock = RWLockFair()
-        self.publish_rlock = self.rw_lock.gen_rlock()
-        self.publish_wlock = self.rw_lock.gen_wlock()
+        self.publish_rlock_dummy = self.rw_lock.gen_rlock()
+        self.publish_wlock_dummy = self.rw_lock.gen_wlock()
 
         self.last_event = -1
         self.last_processed = -1
-        self.new_band_roi = False
+        self.new_roi = False
         self.band_roi = {}
+        self.limits = None
         # FIXME make last_frame nxData and fix proj_corr in slix view
         self.roi_sum: dict[str, Any] = {
-            "data_attrs": {"long_name": "photons"},
+            "data_attrs": {"long_name": "Horizontal ROI"},
             "data": None,
             "motor_attrs": {"long_name": "movable"},
             "motor": None,
@@ -62,13 +63,13 @@ class BalderReducer:
             "motor": None,
         }
         self.band_left: dict[str, Any] = {
-            "data_attrs": {"long_name": "photons"},
+            "data_attrs": {"long_name": "Band ROI left projection"},
             "data": None,
             "motor_attrs": {"long_name": "movable"},
             "motor": None,
         }
         self.band_bottom: dict[str, Any] = {
-            "data_attrs": {"long_name": "photons"},
+            "data_attrs": {"long_name": "Band ROI bottom projection"},
             "data": None,
             "motor_attrs": {"long_name": "movable"},
             "motor": None,
@@ -197,7 +198,7 @@ class BalderReducer:
             # self._roi_dset[result.event_number - 1] =
             self._pos_dset.resize(newsize, axis=0)
             self._pos_dset[result.event_number - 1] = result.payload.motor_pos
-            with self.publish_wlock:
+            with self.publish_wlock_dummy:
                 # publish results and live preview
                 if result.payload.preview is not None:
                     self.pub_xes["last_frame"] = result.payload.preview
@@ -210,19 +211,26 @@ class BalderReducer:
             band_roi = json.loads(parameters[ParameterName("BandROI")].value)
             if band_roi != self.band_roi:
                 self.band_roi = band_roi
-                self.new_band_roi = True
+                self.new_roi = True
         except KeyError:
             logger.warning("Could not decode BandROI")
-        limits = (
-            parameters[ParameterName("ROI_from")].value,
-            parameters[ParameterName("ROI_to")].value,
-        )
+        try:
+            limits = (
+                parameters[ParameterName("ROI_from")].value,
+                parameters[ParameterName("ROI_to")].value,
+            )
+            if limits != self.limits:
+                self.limits = limits
+                self.new_roi = True
+        except KeyError:
+            logger.warning("Could not decode Horizontal ROI")
+
         start = time.time()
-        logger.debug(f"{self.band_roi=}")
-        if (not self.new_band_roi) and self.last_event == self.last_processed:
+        logger.debug(f"{self.band_roi=} {limits=}")
+        if (not self.new_roi) and self.last_event == self.last_processed:
             logger.debug("No new ROI or new events, nothing to process")
             return 1
-        self.new_band_roi = False
+        self.new_roi = False
         self.last_processed = self.last_event
         try:
             x1, y1 = self.band_roi["begin"]
@@ -241,7 +249,7 @@ class BalderReducer:
         ):
             logger.warning("Timer: No image to analyse")
             return 1
-        with self.publish_rlock:
+        with self.publish_rlock_dummy:
             yRange = self.proj_corrected["motor"][0], self.proj_corrected["motor"][-1]
             dataCut = np.array(self.proj_corrected["frame"], dtype=np.float32)
             ny, nx = self.proj_corrected["frame"].shape
@@ -269,11 +277,19 @@ class BalderReducer:
             proj_bottom = xes2Dd.sum(axis=0)
             # preserve total counts in the band:
             proj_bottom *= dataCut.sum() / proj_bottom.sum()
+            dataCut[vm > dt] = 0
+            dataCut[vp < -dt] = 0
+            vmWherePartial = (vm > 0) & (vm < dt)
+            dataCut[vmWherePartial] *= vm[vmWherePartial] / dt
+            vpWherePartial = (vp > -dt) & (vp < 0)
+            dataCut[vpWherePartial] *= -vp[vpWherePartial] / dt
+            proj_left = dataCut.sum(axis=1)
         else:
             dataCut[vm > 0] = 0
             dataCut[vp < 0] = 0
             proj_bottom = dataCut.sum(axis=0)
-        proj_left = dataCut.sum(axis=1)
+            proj_left = dataCut.sum(axis=1)
+
         x_bottom = k * data_x + b
 
         # cutting of the incomplete ends:
@@ -281,7 +297,9 @@ class BalderReducer:
         proj_bottom = proj_bottom[gd]
         x_bottom = x_bottom[gd]
 
-        with self.publish_wlock:
+        logger.debug(f"{proj_left.shape=}{data_y.shape=}")
+
+        with self.publish_wlock_dummy:
             logger.info("Timer: Publish projections")
             self.band_left["data"] = proj_left
             self.band_left["motor"] = data_y
@@ -306,7 +324,7 @@ class BalderReducer:
         # run timer one last time to get the latest projections
         self.timer(parameters)
         logger.info("FINISH THEM!!!")
-        if self._fh is not None:
+        if self._fh is not None and self._fh.driver != "core":
             # add datasets for the latest ROI plots
 
             rois = {
@@ -328,5 +346,5 @@ class BalderReducer:
                 self._fh.create_dataset(axis_path, data=data["motor"])
                 nx.attrs["signal"] = sig_name
                 nx.attrs["axes"] = [axis_name]
-
+            logger.info(f"saving data to {self._fh.filename}")
             self._fh.close()
