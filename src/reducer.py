@@ -226,7 +226,6 @@ class BalderReducer:
             logger.warning("Could not decode Horizontal ROI")
 
         start = time.time()
-        logger.debug(f"{self.band_roi=} {limits=}")
         if (not self.new_roi) and self.last_event == self.last_processed:
             logger.debug("No new ROI or new events, nothing to process")
             return 1
