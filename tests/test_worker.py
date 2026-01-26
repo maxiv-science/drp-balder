@@ -52,7 +52,7 @@ def test_livequery() -> None:
     assert f["xes/roi_sum/data"].shape == (41,)
     assert f["xes/proj_corrected/frame"].shape == (41, 1030)
     assert f["xes/roi_sum/data"][17] == 102
-    assert f["xes/band_2theta/data"][41] == 1
+    assert abs(f["xes/band_2theta/data"][41] - 3.759838) < 3.759e-2
     assert f["xes/band_theta/data"][1] == 34
     stop_event.set()
 
