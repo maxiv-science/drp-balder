@@ -53,26 +53,26 @@ class BalderReducer:
         # FIXME make last_frame nxData and fix proj_corr in slix view
         self.roi_sum: dict[str, Any] = {
             "data_attrs": {"long_name": "Horizontal ROI"},
-            "data": None,
+            "data": [],
             "motor_attrs": {"long_name": "movable"},
-            "motor": None,
+            "motor": [],
         }
         self.proj_corrected: dict[str, Any] = {
             "motor_attrs": {"long_name": "movable"},
-            "frame": None,
-            "motor": None,
+            "frame": [],
+            "motor": [],
         }
         self.band_left: dict[str, Any] = {
             "data_attrs": {"long_name": "Band ROI left projection"},
-            "data": None,
+            "data": [],
             "motor_attrs": {"long_name": "movable"},
-            "motor": None,
+            "motor": [],
         }
         self.band_bottom: dict[str, Any] = {
             "data_attrs": {"long_name": "Band ROI bottom projection"},
-            "data": None,
+            "data": [],
             "motor_attrs": {"long_name": "movable"},
-            "motor": None,
+            "motor": [],
         }
         self.pub_xes: dict[str, Any] = {
             "roi_sum": self.roi_sum,
@@ -243,8 +243,8 @@ class BalderReducer:
                 "Timer: Could not get band ROI info %s, %s", str(self.band_roi), e
             )
             return 1
-        if (self.proj_corrected["frame"] is None) or (
-            self.proj_corrected["motor"] is None
+        if (isinstance(self.proj_corrected["frame"], list)) or (
+            isinstance(self.proj_corrected["motor"], list)
         ):
             logger.warning("Timer: No image to analyse")
             return 1
