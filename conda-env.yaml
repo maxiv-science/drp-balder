@@ -1,13 +1,18 @@
-name: pipeline
+name: default
 channels:
-  - conda-forge
-  - maxiv
+- conda-forge
+- maxiv
+- nodefaults
 dependencies:
-  - python=3.11
-  - pip
-  - bitshuffle-python
-  - h5py
-  - scipy
-  - h5pyd
-  - readerwriterlock
-  - dranspose=0.1.1
+- python 3.11.*
+- pip *
+- bitshuffle-python *
+- h5py *
+- scipy *
+- h5pyd *
+- readerwriterlock *
+- dranspose 0.2.0.*
+- scikit-image >=0.25.2,<0.26
+- cbor2 < 5.8.0
+
+
