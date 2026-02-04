@@ -56,5 +56,4 @@ def test_livequery() -> None:
     assert f["xes/band_theta/data"][1] == 34
     stop_event.set()
 
-    done_event.set()
     thread.join()
